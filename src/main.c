@@ -219,6 +219,12 @@ int main(int argc, char **argv)
 		error(1, ret, "Error downloading miniloader");
 	printf("miniloader downloaded successfully\n");
 
+	// device may have re-enumerated, so reopen USB
+	usb_close(usb);
+	usb = usb_open(USB_VENID_NVIDIA, &devid);
+	if (!usb)
+		error(1, errno, "could not open USB device");
+
 	// now that miniloader is up, start nv3p protocol
 	ret = nv3p_open(&h3p, usb);
 	if (ret)
