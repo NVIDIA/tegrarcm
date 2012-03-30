@@ -565,7 +565,7 @@ PACKAGE_STRING='tegrarcm 1.0'
 PACKAGE_BUGREPORT='amartin@nvidia.com'
 PACKAGE_URL=''
 
-ac_unique_file="config.h.in"
+ac_unique_file="src/main.c"
 # Factoring default headers for most tests.
 ac_includes_default="\
 #include <stdio.h>
@@ -607,6 +607,7 @@ am__EXEEXT_TRUE
 EGREP
 GREP
 CPP
+CRYPTOLIB
 am__fastdepCC_FALSE
 am__fastdepCC_TRUE
 CCDEPMODE
@@ -5469,6 +5470,7 @@ ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
 
 SAVED_LDFLAGS=$LDFLAGS
 LDFLAGS="$LDFLAGS -lcryptopp"
+CRYPTOLIB=
 
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
@@ -5482,12 +5484,31 @@ enum CryptoPP::ByteOrder bo = CryptoPP::LITTLE_ENDIAN_ORDER
 }
 _ACEOF
 if ac_fn_cxx_try_link "$LINENO"; then :
-  HAVE_CRYPTOPP=1
+  CRYPTOLIB="cryptopp"
 else
-  as_fn_error $? "libcryptopp is not installed." "$LINENO" 5
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include <crypto++/cryptlib.h>
+int
+main ()
+{
+enum CryptoPP::ByteOrder bo = CryptoPP::LITTLE_ENDIAN_ORDER
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_cxx_try_link "$LINENO"; then :
+  CRYPTOLIB="crypto++"
+else
+  as_fn_error $? "libcrypto++/libcryptopp is not installed." "$LINENO" 5
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
+
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+
 LDFLAGS=$SAVED_LDFLAGS
 ac_ext=c
 ac_cpp='$CPP $CPPFLAGS'

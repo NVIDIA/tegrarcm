@@ -5,7 +5,7 @@ AC_PREREQ([2.67])
 AC_INIT([tegrarcm], [1.0], [amartin@nvidia.com])
 AM_INIT_AUTOMAKE(tegrarcm, 1.0)
 AC_OUTPUT(Makefile src/Makefile)
-AC_CONFIG_SRCDIR([config.h.in])
+AC_CONFIG_SRCDIR([src/main.c])
 AC_CONFIG_HEADERS([config.h])
 
 # Checks for programs.
@@ -24,11 +24,18 @@ AC_CHECK_LIB([usb-1.0],
 AC_LANG(C++)
 SAVED_LDFLAGS=$LDFLAGS
 LDFLAGS="$LDFLAGS -lcryptopp"
+CRYPTOLIB=
 AC_LINK_IFELSE(
 	[AC_LANG_PROGRAM([#include <cryptopp/cryptlib.h>],
 	[enum CryptoPP::ByteOrder bo = CryptoPP::LITTLE_ENDIAN_ORDER])],
-	[HAVE_CRYPTOPP=1],
-	[AC_MSG_ERROR([libcryptopp is not installed.])])
+	[CRYPTOLIB="cryptopp"],
+	[AC_LINK_IFELSE(
+		[AC_LANG_PROGRAM([#include <crypto++/cryptlib.h>],
+		[enum CryptoPP::ByteOrder bo = CryptoPP::LITTLE_ENDIAN_ORDER])],
+		[CRYPTOLIB="crypto++"],
+		[AC_MSG_ERROR([libcrypto++/libcryptopp is not installed.])])]
+)
+AC_SUBST(CRYPTOLIB)
 LDFLAGS=$SAVED_LDFLAGS
 AC_LANG(C)
 
