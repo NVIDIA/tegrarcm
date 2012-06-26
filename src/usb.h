@@ -29,7 +29,7 @@
 #ifndef USB_H
 #define USB_H
 
-#include <libusb-1.0/libusb.h>
+#include <libusb.h>
 
 #define USB_VENID_NVIDIA 0x955
 #define USB_DEVID_NVIDIA_TEGRA20 0x20

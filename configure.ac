@@ -10,16 +10,14 @@ AC_CONFIG_HEADERS([config.h])
 # Checks for programs.
 AC_PROG_CXX
 AC_PROG_CC
+PKG_PROG_PKG_CONFIG
 
 # Checks for libraries.
 AC_CHECK_LIB([pthread],
 	[pthread_create],
 	[HAVE_PTHREAD=1],
 	[AC_MSG_ERROR([libpthread is not installed.])])
-AC_CHECK_LIB([usb-1.0],
-	[libusb_init],
-	[HAVE_USB=1],
-	[AC_MSG_ERROR([libusb-1.0 is not installed.])])
+PKG_CHECK_MODULES([LIBUSB], [libusb-1.0])
 AC_LANG(C++)
 SAVED_LDFLAGS=$LDFLAGS
 LDFLAGS="$LDFLAGS -lcryptopp"
