@@ -3,7 +3,7 @@
 
 AC_PREREQ([2.67])
 AC_INIT([tegrarcm], [1.0], [amartin@nvidia.com])
-AM_INIT_AUTOMAKE(tegrarcm, 1.0)
+AM_INIT_AUTOMAKE
 AC_CONFIG_SRCDIR([src/main.c])
 AC_CONFIG_HEADERS([config.h])
 
