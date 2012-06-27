@@ -1,0 +1,60 @@
+tegrarcm
+
+What is it?
+This program is used to send code to a Tegra device in recovery mode.
+It does not supported locked devices with an encrypted boot key, only
+open devices such as the ventana or cardhu reference boards.  It is
+not capable of flashing firmware to a device, but can be used to
+download firmware that is then capable of flashing.  For example in
+ChromeOS tegrarcm is used to download a special build of u-boot to the
+target Tegra device with a payload that it then flashes to the boot
+device.
+
+Platforms supported:
+-Tegra20
+-Tegra30
+
+How to use:
+- Connect a USB cable from your development system to your Tegra
+device.  You will either need a USB A to A cable or A to micro B
+depending on the target board.
+- Find the appropriate BCT file for your board.  For reference boards,
+BCT files can be found in the L4T distribution from NVIDIA.
+- Build some firmware for your device (such as u-boot)
+- Run tegrarcm to download the firmware
+
+Example to download u-boot firmware to a Tegra20 seaboard:
+
+$ sudo tegrarcm --bct seaboard.bct --bootloader u-boot.bin --loadaddr 0x108000
+bct file: seaboard.bct
+booloader file: u-boot.bin
+load addr 0x108000
+entry addr 0x108000
+device id: 0x7820
+uid:  0x33c20c0413fb217
+RCM version: 2.1
+downloading miniloader to target...
+miniloader downloaded successfully
+Chip UID:                0x33c20c0413fb217
+Chip ID:                 0x20
+Chip ID Major Version:   0x1
+Chip ID Minor Version:   0x4
+Chip SKU:                0x18 (t25)
+Boot ROM Version:        0x1
+Boot Device:             0x3 (SPI)
+Operating Mode:          0x3 (developer mode)
+Device Config Strap:     0x0
+Device Config Fuse:      0x0
+SDRAM Config Strap:      0x0
+sending file: seaboard.bct
+- 4080/4080 bytes sent
+seaboard.bct sent successfully
+sending file: u-boot.bin
+- 268314/268314 bytes sent
+u-boot.bin sent successfully
+
+
+Changes:
+V1.1 - Added this README file and automake fixes from Mike Frysinger
+ <vapier@gentoo.org>
+V1.0 - Initial release
