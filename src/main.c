@@ -240,8 +240,10 @@ int main(int argc, char **argv)
 	dump_platform_info(&info);
 
 	if (info.op_mode != RCM_OP_MODE_DEVEL &&
-	    info.op_mode != RCM_OP_MODE_ODM_OPEN)
-		error(1, ENODEV, "device is not in developer or open mode, cannot flash");
+	    info.op_mode != RCM_OP_MODE_ODM_OPEN &&
+	    info.op_mode != RCM_OP_MODE_PRE_PRODUCTION)
+		error(1, ENODEV, "device is not in developer, open, "
+		      "or pre-production mode, cannot flash");
 
 	// download the BCT
 	ret = download_bct(h3p, bctfile);
@@ -452,6 +454,7 @@ static void dump_platform_info(nv3p_platform_info_t *info)
 	printf("Operating Mode:          0x%x", info->op_mode);
 	char *op_mode = NULL;
 	switch(info->op_mode) {
+	case RCM_OP_MODE_PRE_PRODUCTION:    op_mode = "pre-production mode"; break;
 	case RCM_OP_MODE_DEVEL:             op_mode = "developer mode"; break;
 	case RCM_OP_MODE_ODM_OPEN:          op_mode = "odm open mode"; break;
 	default:                            op_mode = "unknown"; break;
