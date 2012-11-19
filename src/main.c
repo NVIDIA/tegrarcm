@@ -188,16 +188,16 @@ int main(int argc, char **argv)
 	// write query version message to device
 	ret = usb_write(usb, msg_buff, rcm_get_msg_len(msg_buff));
 	if (ret)
-		error(1, errno, "USB transfer failure");
+		error(1, errno, "write query version - USB transfer failure");
 	free(msg_buff);
 	msg_buff = NULL;
 
 	// read response
 	ret = usb_read(usb, (uint8_t *)&status, sizeof(status), &actual_len);
 	if (ret)
-		error(1, ret, "USB transfer failure");
+		error(1, ret, "read query version - USB transfer failure");
 	if (actual_len < sizeof(status))
-		error(1, EIO, "USB read truncated");
+		error(1, EIO, "read query version - USB read truncated");
 	printf("RCM version: %d.%d\n", RCM_VERSION_MAJOR(status),
 	       RCM_VERSION_MINOR(status));
 
@@ -269,13 +269,19 @@ static int wait_status(nv3p_handle_t h3p)
 	nv3p_cmd_status_t *status_arg = 0;
 
 	ret = nv3p_cmd_recv(h3p, &cmd, (void **)&status_arg);
-	if (ret)
+	if (ret) {
+		dprintf("nv3p_cmd_recv failed\n");
 		goto fail;
+	}
 	if (cmd != NV3P_CMD_STATUS) {
+		dprintf("expecting NV3P_CMD_STATUS(0x%x) got 0x%x\n",
+			NV3P_CMD_STATUS, cmd);
 		ret = EIO;
 		goto fail;
 	}
 	if (status_arg->code != nv3p_status_ok) {
+		dprintf("expecting nv3p_status_ok(0x%x) got 0x%x\n",
+			nv3p_status_ok, status_arg->code);
 		ret = EIO;
 		goto fail;
 	}

@@ -376,14 +376,18 @@ static int nv3p_recv_hdr(nv3p_handle_t h3p, nv3p_header_t *hdr,
 	tmp = &s_buffer[0];
 	length = NV3P_PACKET_SIZE_BASIC;
 	ret = nv3p_read(h3p->usb, tmp, length);
-	if (ret)
+	if (ret) {
+		dprintf("error reading packet: %d\n", ret);
 		return ret;
+	}
 
 	READ32(tmp, hdr->version);
 	READ32(tmp, hdr->packet_type);
 	READ32(tmp, hdr->sequence);
 
 	if (hdr->version != NV3P_VERSION) {
+		dprintf("version mismatch, expecting NV3P_VERSION(0x%x), got 0x%x\n",
+			NV3P_VERSION, hdr->version);
 		return EINVAL;
 	}
 
@@ -600,18 +604,25 @@ int nv3p_cmd_recv(nv3p_handle_t h3p, uint32_t *command, void **args)
 
 	// get the basic header, verify it's a command
 	ret = nv3p_recv_hdr(h3p, &hdr, &recv_checksum);
-	if (ret)
+	if (ret) {
+		dprintf("nv3p_recv_hdr returned %d\n", ret);
 		return ret;
+	}
 
-	if(hdr.packet_type != NV3P_PACKET_TYPE_CMD)
+	if(hdr.packet_type != NV3P_PACKET_TYPE_CMD) {
+		dprintf("expecting NV3P_PACKET_TYPE_CMD(0x%x), got 0x%x\n",
+			NV3P_PACKET_TYPE_CMD, hdr.packet_type);
 		return nv3p_drain_packet(h3p, &hdr);
+	}
 
 	tmp = &s_buffer[0];
 
 	// get length and command number
 	ret = nv3p_read(h3p->usb, tmp, (2 * 4));
-	if (ret)
+	if (ret) {
+		dprintf("nv3p_read() returned %d\n", ret);
 		return ret;
+	}
 
 	READ32(tmp, length);
 	READ32(tmp, *(uint32_t *)command);
@@ -619,12 +630,16 @@ int nv3p_cmd_recv(nv3p_handle_t h3p, uint32_t *command, void **args)
 	// read the args
 	if (length) {
 		ret = nv3p_read(h3p->usb, tmp, length);
-		if (ret)
+		if (ret) {
+			dprintf("nv3p_read returned %d\n", ret);
 			return ret;
+		}
 
 		ret = nv3p_get_args(h3p, *command, args, tmp);
-		if (ret)
+		if (ret) {
+			dprintf("nv3p_get_args returned %d\n", ret);
 			return ret;
+		}
 	} else {
 		// command may be output only
 		ret = nv3p_get_args(h3p, *command, args, 0);
@@ -637,11 +652,15 @@ int nv3p_cmd_recv(nv3p_handle_t h3p, uint32_t *command, void **args)
 
 	// get/verify the checksum
 	ret = nv3p_read(h3p->usb, (uint8_t *)&checksum, 4);
-	if (ret)
+	if (ret) {
+		dprintf("nv3p_read returned %d reading checksum\n", ret);
 		return ret;
+	}
 
-	if(recv_checksum + checksum != 0)
+	if(recv_checksum + checksum != 0) {
+		dprintf("checksum mismatch\n");
 		return EIO;
+	}
 
 	return 0;
 }
