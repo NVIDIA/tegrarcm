@@ -40,8 +40,8 @@
 // commands
 #define NV3P_CMD_GET_PLATFORM_INFO       0x01
 #define NV3P_CMD_DL_BCT                  0x04
-#define NV3P_CMD_DL_BL                   0x05
-#define NV3P_CMD_STATUS                  0x09
+#define NV3P_CMD_DL_BL                   0x06
+#define NV3P_CMD_STATUS                  0x0a
 
 // nack codes
 #define NV3P_NACK_SUCCESS                0x1
@@ -103,6 +103,16 @@ typedef struct {
 } nv3p_chip_id_t;
 
 /*
+ * board ID
+ */
+typedef struct {
+	uint32_t board_no;
+	uint32_t fab;
+	uint32_t mem_type;
+	uint32_t freq;
+} nv3p_board_id_t;
+
+/*
  * Command arguments.
  */
 
@@ -121,7 +131,7 @@ typedef struct {
  * are output parameters.
  */
 typedef struct {
-	uint64_t uid;
+	uint64_t uid[2];
 	nv3p_chip_id_t chip_id;
 	uint32_t sku;
 	uint32_t version;
@@ -131,6 +141,7 @@ typedef struct {
 	uint32_t dev_conf_fuse;
 	uint32_t sdram_conf_strap;
 	uint32_t reserved[2];
+	nv3p_board_id_t board_id;
 } nv3p_platform_info_t;
 
 

@@ -410,7 +410,8 @@ fail:
 
 static void dump_platform_info(nv3p_platform_info_t *info)
 {
-	printf("Chip UID:                0x%" PRIx64 "\n", info->uid);
+	printf("Chip UID:                0x%016" PRIx64 "%016" PRIx64 "\n",
+	       info->uid[1], info->uid[0]);
 	printf("Chip ID:                 0x%x\n", (uint32_t)info->chip_id.id);
 	printf("Chip ID Major Version:   0x%x\n", (uint32_t)info->chip_id.major);
 	printf("Chip ID Minor Version:   0x%x\n", (uint32_t)info->chip_id.minor);
