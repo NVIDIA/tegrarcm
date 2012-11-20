@@ -34,7 +34,8 @@
 #define RCM_MIN_MSG_LENGTH 1024 // In bytes
 
 #define NVBOOT_VERSION(a,b) ((((a)&0xffff) << 16) | ((b)&0xffff))
-#define RCM_VERSION (NVBOOT_VERSION(1, 0))
+#define RCM_VERSION_1 (NVBOOT_VERSION(1, 0))
+#define RCM_VERSION_35 (NVBOOT_VERSION(0x35, 1))
 #define RCM_VERSION_MAJOR(ver) ((ver) >> 16)
 #define RCM_VERSION_MINOR(ver) ((ver) & 0xffff)
 
@@ -66,13 +67,31 @@ typedef struct {
 	uint32_t rcm_version;
 	uint8_t args[48];
 	uint8_t padding[16];
-} rcm_msg_t;
+} rcm1_msg_t;
+
+typedef struct {
+	uint32_t len_insecure;
+	uint8_t modulus[2048 / 8];
+	union {
+		uint8_t cmac_hash[RCM_AES_BLOCK_SIZE];
+		uint8_t rsa_pss_sig[2048 / 8];
+	} object_sig;
+	uint8_t reserved[16];
+	uint32_t ecid[4];
+	uint32_t opcode;
+	uint32_t len_secure;
+	uint32_t payload_len;
+	uint32_t rcm_version;
+	uint8_t args[48];
+	uint8_t padding[16];
+} rcm35_msg_t;
 
 // security operating modes
 #define RCM_OP_MODE_PRE_PRODUCTION  0x1
 #define RCM_OP_MODE_DEVEL           0x3
 #define RCM_OP_MODE_ODM_OPEN        0x5
 
+int rcm_init(uint32_t version);
 uint32_t rcm_get_msg_len(uint8_t *msg);
 int rcm_create_msg(
 	uint32_t opcode,

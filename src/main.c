@@ -182,6 +182,11 @@ int main(int argc, char **argv)
 
 	printf("uid:  0x%" PRIx64 "\n", uid);
 
+	// initialize RCM
+	ret = rcm_init(RCM_VERSION_1);
+	if (ret)
+		error(1, errno, "RCM initialize failed");
+
 	// create query version message
 	rcm_create_msg(RCM_CMD_QUERY_RCM_VERSION, NULL, 0, NULL, 0, &msg_buff);
 
