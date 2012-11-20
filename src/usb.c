@@ -154,7 +154,8 @@ usb_device_t *usb_open(uint16_t venid, uint16_t *devid)
 		libusb_device *device = list[i];
 		if (usb_match(device, venid, devid)) {
 			if ((*devid & 0xff) == USB_DEVID_NVIDIA_TEGRA20 ||
-			    (*devid & 0xff) == USB_DEVID_NVIDIA_TEGRA30) {
+			    (*devid & 0xff) == USB_DEVID_NVIDIA_TEGRA30 ||
+			    (*devid & 0xff) == USB_DEVID_NVIDIA_TEGRA114) {
 				found = device;
 				break;
 			} else {

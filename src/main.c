@@ -53,6 +53,9 @@
 // tegra30 miniloader
 #include "tegra30-miniloader.h"
 
+// tegra114 miniloader
+#include "tegra114-miniloader.h"
+
 static int wait_status(nv3p_handle_t h3p);
 static int send_file(nv3p_handle_t h3p, const char *filename);
 static int download_miniloader(usb_device_t *usb, uint8_t *miniloader,
@@ -83,7 +86,7 @@ int main(int argc, char **argv)
 {
 	// discover devices
 	uint8_t *msg_buff;
-	uint64_t uid;
+	uint64_t uid[2];
 	int actual_len;
 	usb_device_t *usb;
 	uint32_t status;
@@ -174,16 +177,28 @@ int main(int argc, char **argv)
 		error(1, errno, "could not open USB device");
 	printf("device id: 0x%x\n", devid);
 
-	ret = usb_read(usb, (uint8_t *)&uid, sizeof(uid), &actual_len);
+	ret = usb_read(usb, (uint8_t *)uid, sizeof(uid), &actual_len);
 	if (ret)
 		error(1, ret, "USB transfer failure");
-	if (actual_len < sizeof(uid))
+	if (actual_len == 8)
+		printf("uid:  0x%016" PRIx64 "\n", uid[0]);
+	else if (actual_len == 16)
+		printf("uid:  0x%016" PRIx64 "%016" PRIx64 "\n",
+		       uid[1], uid[0]);
+	else
 		error(1, errno, "USB read truncated");
 
-	printf("uid:  0x%" PRIx64 "\n", uid);
-
 	// initialize RCM
-	ret = rcm_init(RCM_VERSION_1);
+	if ((devid & 0xff) == USB_DEVID_NVIDIA_TEGRA20 ||
+	    (devid & 0xff) == USB_DEVID_NVIDIA_TEGRA30) {
+		dprintf("initializing RCM version 1\n");
+		ret = rcm_init(RCM_VERSION_1);
+	} else if ((devid & 0xff) == USB_DEVID_NVIDIA_TEGRA114) {
+		dprintf("initializing RCM version 35\n");
+		ret = rcm_init(RCM_VERSION_35);
+	} else {
+		error(1, ENODEV, "unknown tegra device: 0x%x", devid);
+	}
 	if (ret)
 		error(1, errno, "RCM initialize failed");
 
@@ -215,6 +230,10 @@ int main(int argc, char **argv)
 		miniloader = miniloader_tegra30;
 		miniloader_size = sizeof(miniloader_tegra30);
 		miniloader_entry = TEGRA30_MINILOADER_ENTRY;
+	} else if ((devid & 0xff) == USB_DEVID_NVIDIA_TEGRA114) {
+		miniloader = miniloader_tegra114;
+		miniloader_size = sizeof(miniloader_tegra114);
+		miniloader_entry = TEGRA114_MINILOADER_ENTRY;
 	} else {
 		error(1, ENODEV, "unknown tegra device: 0x%x", devid);
 	}
@@ -440,6 +459,11 @@ static void dump_platform_info(nv3p_platform_info_t *info)
 		case TEGRA3_CHIP_SKU_AP30:   chip_name = "ap30"; break;
 		case TEGRA3_CHIP_SKU_T30:    chip_name = "t30"; break;
 		case TEGRA3_CHIP_SKU_T30S:   chip_name = "t30s"; break;
+		default: chip_name = "unknown"; break;
+		}
+	} else if (info->chip_id.id == 0x35) {
+		switch (info->sku) {
+		case TEGRA114_CHIP_SKU_T114: chip_name = "t114"; break;
 		default: chip_name = "unknown"; break;
 		}
 	} else {
