@@ -511,7 +511,7 @@ static int download_bct(nv3p_handle_t h3p, char *filename)
 
 	ret = stat(filename, &sb);
 	if (ret)
-		return ret;
+		return errno;
 	arg.length = sb.st_size;
 
 	ret = nv3p_cmd_send(h3p, NV3P_CMD_DL_BCT, (uint8_t *)&arg);
