@@ -19,4 +19,12 @@ tegrarcm_SOURCES = \
 	tegra114-miniloader.h \
 	usb.h
 
+man_MANS = tegrarcm.1
+
+EXTRA_DIST = tegrarcm.1.in
+DISTCLEANFILES = tegrarcm.1
+
 tegrarcm_LDADD = $(LIBUSB_LIBS) -l$(CRYPTOLIB) -lpthread
+
+tegrarcm.1: $(srcdir)/tegrarcm.1.in
+	sed 's|VERSION|$(VERSION)|g' $< >$@
