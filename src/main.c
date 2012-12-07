@@ -103,6 +103,7 @@ int main(int argc, char **argv)
 	uint8_t *miniloader;
 	uint32_t miniloader_size;
 	uint32_t miniloader_entry;
+	int msg_len;
 
 	static struct option long_options[] = {
 		[OPT_BCT]        = {"bct", 1, 0, 0},
@@ -206,7 +207,10 @@ int main(int argc, char **argv)
 	rcm_create_msg(RCM_CMD_QUERY_RCM_VERSION, NULL, 0, NULL, 0, &msg_buff);
 
 	// write query version message to device
-	ret = usb_write(usb, msg_buff, rcm_get_msg_len(msg_buff));
+	msg_len = rcm_get_msg_len(msg_buff);
+	if (msg_len == 0)
+		error(1, EINVAL, "unknown message length");
+	ret = usb_write(usb, msg_buff, msg_len);
 	if (ret)
 		error(1, errno, "write query version - USB transfer failure");
 	free(msg_buff);
