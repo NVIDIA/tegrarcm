@@ -20,7 +20,7 @@ AC_CHECK_LIB([pthread],
 PKG_CHECK_MODULES([LIBUSB], [libusb-1.0])
 AC_LANG(C++)
 SAVED_LDFLAGS=$LDFLAGS
-LDFLAGS="$LDFLAGS -lcryptopp"
+LDFLAGS="$LDFLAGS -lcryptopp -lpthread"
 CRYPTOLIB=
 AC_LINK_IFELSE(
 	[AC_LANG_PROGRAM([#include <cryptopp/cryptlib.h>],
