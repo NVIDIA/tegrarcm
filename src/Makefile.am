@@ -14,9 +14,9 @@ tegrarcm_SOURCES = \
 	nv3p.h \
 	nv3p_status.h \
 	rcm.h \
-	tegra20-miniloader.h \
-	tegra30-miniloader.h \
-	tegra114-miniloader.h \
+	miniloader/tegra20-miniloader.h \
+	miniloader/tegra30-miniloader.h \
+	miniloader/tegra114-miniloader.h \
 	usb.h
 
 man_MANS = tegrarcm.1

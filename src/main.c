@@ -49,13 +49,13 @@
 #include "config.h"
 
 // tegra20 miniloader
-#include "tegra20-miniloader.h"
+#include "miniloader/tegra20-miniloader.h"
 
 // tegra30 miniloader
-#include "tegra30-miniloader.h"
+#include "miniloader/tegra30-miniloader.h"
 
 // tegra114 miniloader
-#include "tegra114-miniloader.h"
+#include "miniloader/tegra114-miniloader.h"
 
 static int wait_status(nv3p_handle_t h3p);
 static int send_file(nv3p_handle_t h3p, const char *filename);
