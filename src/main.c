@@ -46,6 +46,7 @@
 #include "aes-cmac.h"
 #include "rcm.h"
 #include "debug.h"
+#include "config.h"
 
 // tegra20 miniloader
 #include "tegra20-miniloader.h"
@@ -71,8 +72,14 @@ enum cmdline_opts {
 	OPT_LOADADDR,
 	OPT_ENTRYADDR,
 	OPT_HELP,
+	OPT_VERSION,
 	OPT_END,
 };
+
+static void print_version(char *progname)
+{
+	printf("%s %s\n", PACKAGE_NAME, PACKAGE_VERSION);
+}
 
 static void usage(char *progname)
 {
@@ -111,6 +118,7 @@ int main(int argc, char **argv)
 		[OPT_LOADADDR]   = {"loadaddr", 1, 0, 0},
 		[OPT_ENTRYADDR]  = {"entryaddr", 1, 0, 0},
 		[OPT_HELP]       = {"help", 0, 0, 0},
+		[OPT_VERSION]    = {"version", 0, 0, 0},
 		[OPT_END]        = {0, 0, 0, 0}
 	};
 
@@ -136,6 +144,9 @@ int main(int argc, char **argv)
 			case OPT_ENTRYADDR:
 				entryaddr = strtoul(optarg, NULL, 0);
 				break;
+			case OPT_VERSION:
+				print_version(argv[0]);
+				exit(0);
 			case OPT_HELP:
 			default:
 				usage(argv[0]);

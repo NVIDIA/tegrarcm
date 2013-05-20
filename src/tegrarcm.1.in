@@ -59,6 +59,9 @@ specified in hex and is typically 0x108000 for a Tegra20 device or
 Specify the entry address that control will be passed to after the
 firmware is loaded.  This should be specified in hex.  If this option
 is omitted it is assumed to be the same as the load address.
+.TP
+.B \-\-version
+Print the version number and exit.
 
 .SH EXAMPLE
 To download u-boot firmware to a Tegra20 seaboard:
