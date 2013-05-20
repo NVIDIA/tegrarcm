@@ -62,6 +62,9 @@ is omitted it is assumed to be the same as the load address.
 .TP
 .B \-\-version
 Print the version number and exit.
+.TP
+.B \-\-help
+Print help text and exit.
 
 .SH EXAMPLE
 To download u-boot firmware to a Tegra20 seaboard:
