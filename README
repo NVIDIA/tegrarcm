@@ -56,6 +56,9 @@ u-boot.bin sent successfully
 
 
 Changes (see git logs for complete list):
+V1.4 - Added --version command
+     - Updated T114 miniloader to fix SPI boot problem
+     - Added --help command to man page
 V1.3 - Added some better error checking on return values
      - Fixed configure problem related to libcrypto++ and libpthread
        interaction
