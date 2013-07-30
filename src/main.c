@@ -57,6 +57,9 @@
 // tegra114 miniloader
 #include "miniloader/tegra114-miniloader.h"
 
+// tegra124 miniloader
+#include "miniloader/tegra124-miniloader.h"
+
 static int wait_status(nv3p_handle_t h3p);
 static int send_file(nv3p_handle_t h3p, const char *filename);
 static int download_miniloader(usb_device_t *usb, uint8_t *miniloader,
@@ -208,6 +211,9 @@ int main(int argc, char **argv)
 	} else if ((devid & 0xff) == USB_DEVID_NVIDIA_TEGRA114) {
 		dprintf("initializing RCM version 35\n");
 		ret = rcm_init(RCM_VERSION_35);
+	} else if ((devid & 0xff) == USB_DEVID_NVIDIA_TEGRA124) {
+		dprintf("initializing RCM version 40\n");
+		ret = rcm_init(RCM_VERSION_40);
 	} else {
 		error(1, ENODEV, "unknown tegra device: 0x%x", devid);
 	}
@@ -249,6 +255,10 @@ int main(int argc, char **argv)
 		miniloader = miniloader_tegra114;
 		miniloader_size = sizeof(miniloader_tegra114);
 		miniloader_entry = TEGRA114_MINILOADER_ENTRY;
+	} else if ((devid & 0xff) == USB_DEVID_NVIDIA_TEGRA124) {
+		miniloader = miniloader_tegra124;
+		miniloader_size = sizeof(miniloader_tegra124);
+		miniloader_entry = TEGRA124_MINILOADER_ENTRY;
 	} else {
 		error(1, ENODEV, "unknown tegra device: 0x%x", devid);
 	}
@@ -483,6 +493,11 @@ static void dump_platform_info(nv3p_platform_info_t *info)
 		case TEGRA114_CHIP_SKU_T114:
 		case TEGRA114_CHIP_SKU_T114_1:
 		default: chip_name = "t114"; break;
+		}
+	} else if (info->chip_id.id == 0x40) {
+		switch (info->sku) {
+		case TEGRA124_CHIP_SKU_T124:
+		default: chip_name = "t124"; break;
 		}
 	} else {
 		chip_name = "unknown";

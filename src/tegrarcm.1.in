@@ -24,6 +24,8 @@ device.
 .B Tegra30
 .IP \(bu
 .B Tegra114
+.IP \(bu
+.B Tegra124
 
 .SS How to use
 .IP \(em
@@ -53,7 +55,7 @@ the firmware file that will be downloaded and executed.
 .B \-\-loadaddr \fIloadaddr\fP
 Specify the address the bootloader will be loaded at.  This should be
 specified in hex and is typically 0x108000 for a Tegra20 device or
-0x80108000 for a Tegra30 or Tegra114 device.
+0x80108000 for a Tegra30, Tegra114, or Tegra124 device.
 .TP
 .B \-\-entryaddr \fIentryaddr\fP
 Specify the entry address that control will be passed to after the
