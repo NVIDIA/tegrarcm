@@ -36,6 +36,7 @@
 #define NVBOOT_VERSION(a,b) ((((a)&0xffff) << 16) | ((b)&0xffff))
 #define RCM_VERSION_1 (NVBOOT_VERSION(1, 0))
 #define RCM_VERSION_35 (NVBOOT_VERSION(0x35, 1))
+#define RCM_VERSION_40 (NVBOOT_VERSION(0x40, 1))
 #define RCM_VERSION_MAJOR(ver) ((ver) >> 16)
 #define RCM_VERSION_MINOR(ver) ((ver) & 0xffff)
 
@@ -58,33 +59,50 @@
  *     padding
  */
 typedef struct {
-	uint32_t len_insecure;
-	uint8_t cmac_hash[RCM_AES_BLOCK_SIZE];
-	uint8_t reserved[16];
-	uint32_t opcode;
-	uint32_t len_secure;
-	uint32_t payload_len;
-	uint32_t rcm_version;
-	uint8_t args[48];
-	uint8_t padding[16];
+	uint32_t len_insecure;		// 000-003
+	uint8_t cmac_hash[RCM_AES_BLOCK_SIZE];	// 004-013
+	uint8_t reserved[16];		// 014-023
+	uint32_t opcode;		// 024-027
+	uint32_t len_secure;		// 028-02b
+	uint32_t payload_len;		// 02c-02f
+	uint32_t rcm_version;		// 030-033
+	uint8_t args[48];		// 034-063
+	uint8_t padding[16];		// 064-073
 } rcm1_msg_t;
 
 typedef struct {
-	uint32_t len_insecure;
-	uint8_t modulus[2048 / 8];
+	uint32_t len_insecure;		// 000-003
+	uint8_t modulus[2048 / 8];	// 004-103
 	union {
 		uint8_t cmac_hash[RCM_AES_BLOCK_SIZE];
 		uint8_t rsa_pss_sig[2048 / 8];
-	} object_sig;
-	uint8_t reserved[16];
-	uint32_t ecid[4];
-	uint32_t opcode;
-	uint32_t len_secure;
-	uint32_t payload_len;
-	uint32_t rcm_version;
-	uint8_t args[48];
-	uint8_t padding[16];
+	} object_sig;			// 104-203
+	uint8_t reserved[16];		// 204-213
+	uint32_t ecid[4];		// 214-223
+	uint32_t opcode;		// 224-227
+	uint32_t len_secure;		// 228-22b
+	uint32_t payload_len;		// 22c-22f
+	uint32_t rcm_version;		// 230-233
+	uint8_t args[48];		// 234-263
+	uint8_t padding[16];		// 264-273
 } rcm35_msg_t;
+
+typedef struct {
+	uint32_t len_insecure;		// 000-003
+	uint8_t modulus[2048 / 8];	// 004-103
+	struct {
+		uint8_t cmac_hash[RCM_AES_BLOCK_SIZE];
+		uint8_t rsa_pss_sig[2048 / 8];
+	} object_sig;			// 104-213
+	uint8_t reserved[16];		// 214-223
+	uint32_t ecid[4];		// 224-233
+	uint32_t opcode;		// 234-237
+	uint32_t len_secure;		// 238-23b
+	uint32_t payload_len;		// 23c-23f
+	uint32_t rcm_version;		// 240-243
+	uint8_t args[48];		// 244-273
+	uint8_t padding[16];		// 274-283
+} rcm40_msg_t;
 
 // security operating modes
 #define RCM_OP_MODE_PRE_PRODUCTION  0x1

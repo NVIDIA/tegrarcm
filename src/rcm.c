@@ -36,6 +36,7 @@
 static int rcm_sign_msg(uint8_t *buf);
 static int rcm1_sign_msg(uint8_t *buf);
 static int rcm35_sign_msg(uint8_t *buf);
+static int rcm40_sign_msg(uint8_t *buf);
 static void rcm_init_msg(
 	uint8_t *buf,
 	uint32_t msg_len,
@@ -51,6 +52,13 @@ static void rcm1_init_msg(
 	uint32_t args_len,
 	uint32_t payload_len);
 static void rcm35_init_msg(
+	uint8_t *buf,
+	uint32_t msg_len,
+	uint32_t opcode,
+	void *args,
+	uint32_t args_len,
+	uint32_t payload_len);
+static void rcm40_init_msg(
 	uint8_t *buf,
 	uint32_t msg_len,
 	uint32_t opcode,
@@ -79,6 +87,11 @@ int rcm_init(uint32_t version)
 		message_size = sizeof(rcm35_msg_t);
 		ret = 0;
 	}
+	else if (version == RCM_VERSION_40) {
+		rcm_version = version;
+		message_size = sizeof(rcm40_msg_t);
+		ret = 0;
+	}
 	return ret;
 }
 
@@ -88,6 +101,8 @@ uint32_t rcm_get_msg_len(uint8_t *msg)
 		return ((rcm1_msg_t*)msg)->len_insecure;
 	else if (rcm_version == RCM_VERSION_35)
 		return ((rcm35_msg_t*)msg)->len_insecure;
+	else if (rcm_version == RCM_VERSION_40)
+		return ((rcm40_msg_t*)msg)->len_insecure;
 	else
 		return 0;
 }
@@ -139,6 +154,8 @@ static int rcm_sign_msg(uint8_t *buf)
 {
 	if (rcm_version == RCM_VERSION_35)
 		return rcm35_sign_msg(buf);
+	else if (rcm_version == RCM_VERSION_40)
+		return rcm40_sign_msg(buf);
 	else if (rcm_version == RCM_VERSION_1)
 		return rcm1_sign_msg(buf);
 	else
@@ -184,6 +201,26 @@ static int rcm35_sign_msg(uint8_t *buf)
 	return 0;
 }
 
+static int rcm40_sign_msg(uint8_t *buf)
+{
+	rcm40_msg_t *msg;
+	uint32_t crypto_len;
+
+	msg = (rcm40_msg_t*)buf;
+
+	// signing does not include the len_insecure, modulus
+	// and object signature at the beginning of the message
+	crypto_len = msg->len_insecure - sizeof(msg->len_insecure) -
+		sizeof(msg->modulus) -
+		sizeof(msg->object_sig);
+	if (crypto_len % RCM_AES_BLOCK_SIZE) {
+		return -EMSGSIZE;
+	}
+
+	cmac_hash(msg->reserved, crypto_len, msg->object_sig.cmac_hash);
+	return 0;
+}
+
 static uint32_t rcm_get_msg_buf_len(uint32_t payload_len)
 {
 	return message_size + payload_len +
@@ -214,6 +251,9 @@ static void rcm_init_msg(
 {
 	if (rcm_version == RCM_VERSION_35)
 		rcm35_init_msg(buf, msg_len, opcode, args,
+			       args_len, payload_len);
+	else if (rcm_version == RCM_VERSION_40)
+		rcm40_init_msg(buf, msg_len, opcode, args,
 			       args_len, payload_len);
 	else if (rcm_version == RCM_VERSION_1)
 		rcm1_init_msg(buf, msg_len, opcode, args,
@@ -252,6 +292,40 @@ static void rcm35_init_msg(
 
 	rcm_msg_pad(msg->padding, sizeof(msg->padding));
 	rcm_msg_pad(buf + sizeof(rcm35_msg_t) + payload_len, padding_len);
+}
+
+static void rcm40_init_msg(
+	uint8_t *buf,
+	uint32_t msg_len,
+	uint32_t opcode,
+	void *args,
+	uint32_t args_len,
+	uint32_t payload_len)
+{
+	uint32_t padding_len;
+	rcm40_msg_t *msg;
+
+	msg = (rcm40_msg_t *)buf;
+
+	padding_len = rcm_get_pad_len(payload_len);
+
+	msg->len_insecure = sizeof(rcm40_msg_t) + payload_len +
+		padding_len;
+
+	memset(&msg->object_sig.cmac_hash, 0x0, sizeof(msg->object_sig.cmac_hash));
+	memset(&msg->reserved, 0x0, sizeof(msg->reserved));
+
+	msg->opcode         = opcode;
+	msg->len_secure     = msg->len_insecure;
+	msg->payload_len    = payload_len;
+	msg->rcm_version    = RCM_VERSION_40;
+
+	if (args_len)
+		memcpy(msg->args, args, args_len);
+	memset(msg->args + args_len, 0x0, sizeof(msg->args) - args_len);
+
+	rcm_msg_pad(msg->padding, sizeof(msg->padding));
+	rcm_msg_pad(buf + sizeof(rcm40_msg_t) + payload_len, padding_len);
 }
 
 static void rcm1_init_msg(
