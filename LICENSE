@@ -26,8 +26,8 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-The files tegra20-miniloader.h and tegra30-miniloader.h are provided
-pursuant to the following license agreement:
+The files in the directory src/miniloader are provided pursuant to the
+following license agreement:
 
 License For Use of NVIDIA Software
 
