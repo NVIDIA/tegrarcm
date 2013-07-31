@@ -56,6 +56,10 @@ u-boot.bin sent successfully
 
 
 Changes (see git logs for complete list):
+V1.5 - Added support for RCM protocol version 40
+     - Added Tegra124 support
+     - Added support for readbct command
+     - Added support for passing in miniloader from a file
 V1.4 - Added --version command
      - Updated T114 miniloader to fix SPI boot problem
      - Added --help command to man page
