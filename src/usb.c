@@ -34,6 +34,9 @@
 #include "usb.h"
 #include "debug.h"
 
+// USB xfer timeout in ms
+#define USB_TIMEOUT 1000
+
 #define USB_XFER_MAX 4096
 
 //
@@ -225,7 +228,7 @@ int usb_write(usb_device_t *usb, uint8_t *buf, int len)
 	while (len) {
 		chunk_size = MIN(len, USB_XFER_MAX);
 		ret = libusb_bulk_transfer(usb->handle, usb->endpt_out, buf,
-					   chunk_size, &actual_chunk, 0);
+					   chunk_size, &actual_chunk, USB_TIMEOUT);
 		if (ret != LIBUSB_SUCCESS) {
 			dprintf("write failure: %d\n", ret);
 			return EIO;
@@ -252,7 +255,7 @@ int usb_read(usb_device_t *usb, uint8_t *buf, int len, int *actual_len)
 	while (len) {
 		chunk_size = MIN(len, USB_XFER_MAX);
 		ret = libusb_bulk_transfer(usb->handle, usb->endpt_in, buf,
-					   chunk_size, &actual_chunk, 0);
+					   chunk_size, &actual_chunk, USB_TIMEOUT);
 		if (ret != LIBUSB_SUCCESS) {
 			dprintf("read failure: %d\n", ret);
 			return EIO;
