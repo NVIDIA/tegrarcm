@@ -40,6 +40,11 @@ Build some firmware for your device (such as u-boot)
 .IP \(em
 Run tegrarcm to download the firmware
 
+.SH COMMANDS
+.TP
+.B readbct
+Read the BCT from the target device and write it to \fIbctfile\fP.
+
 .SH OPTIONS
 .TP
 .B \-\-bct \fIbctfile\fP
@@ -67,8 +72,9 @@ Print the version number and exit.
 .TP
 .B \-\-help
 Print help text and exit.
+.TP
 
-.SH EXAMPLE
+.SH EXAMPLES
 To download u-boot firmware to a Tegra20 seaboard:
 
 .nf
@@ -99,6 +105,15 @@ seaboard.bct sent successfully
 sending file: u-boot.bin
 - 268314/268314 bytes sent
 u-boot.bin sent successfully
+.fi
+
+To read the BCT from a system:
+
+.nf
+$ sudo tegrarcm --bct ventana.bct readbct
+bct file: ventana.bct
+device id: 0x7820
+reading BCT from system, writing to ventana.bct...done!
 .fi
 
 .SH RETURN VALUE

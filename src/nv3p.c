@@ -123,7 +123,7 @@ typedef struct nv3p_state {
  * double the currently-largest command size, just to have some wiggle-room
  * (updates to commands without fixing this on accident, etc.)
  */
-#define NV3P_MAX_COMMAND_SIZE  128
+#define NV3P_MAX_COMMAND_SIZE  (2 << 12)
 
 #define NV3P_MAX_ACK_SIZE \
     NV3P_PACKET_SIZE_BASIC + \
@@ -209,7 +209,6 @@ static int nv3p_recv_hdr(nv3p_handle_t h3p, nv3p_header_t *hdr,
 			 uint32_t *checksum );
 static int nv3p_drain_packet(nv3p_handle_t h3p, nv3p_header_t *hdr );
 static void nv3p_nack(nv3p_handle_t h3p, uint32_t code);
-static int nv3p_data_recv(nv3p_handle_t h3p, uint8_t *data, uint32_t length);
 static int nv3p_read(usb_device_t *usb, uint8_t *buf, int len);
 static int nv3p_get_args(nv3p_handle_t h3p, uint32_t command, void **args,
 			 uint8_t *packet );
@@ -321,6 +320,7 @@ static void nv3p_write_cmd(nv3p_handle_t h3p, uint32_t command, void *args,
 
 	switch(command) {
 	case NV3P_CMD_GET_PLATFORM_INFO:
+	case NV3P_CMD_GET_BCT:
 		// no args or output only
 		*length = 0;
 		WRITE32(tmp, *length);
@@ -418,6 +418,9 @@ static int nv3p_get_cmd_return(nv3p_handle_t h3p, uint32_t command, void *args)
 	case NV3P_CMD_GET_PLATFORM_INFO:
 		length = sizeof(nv3p_platform_info_t);
 		break;
+	case NV3P_CMD_GET_BCT:
+		length = sizeof(nv3p_bct_info_t);
+		break;
 	case NV3P_CMD_DL_BCT:
 	case NV3P_CMD_DL_BL:
 		break;
@@ -467,7 +470,7 @@ static int nv3p_recv_hdr(nv3p_handle_t h3p, nv3p_header_t *hdr,
 	return 0;
 }
 
-static int nv3p_data_recv(nv3p_handle_t h3p, uint8_t *data, uint32_t length)
+int nv3p_data_recv(nv3p_handle_t h3p, uint8_t *data, uint32_t length)
 {
 	int ret;
 	uint8_t *tmp;
@@ -629,6 +632,7 @@ static int nv3p_get_args(nv3p_handle_t h3p, uint32_t command, void **args,
 
 	switch(command) {
 	case NV3P_CMD_GET_PLATFORM_INFO:
+	case NV3P_CMD_GET_BCT:
 		// output only
 		break;
 	case NV3P_CMD_STATUS:

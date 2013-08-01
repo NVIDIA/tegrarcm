@@ -69,6 +69,7 @@ static void dump_platform_info(nv3p_platform_info_t *info);
 static int download_bct(nv3p_handle_t h3p, char *filename);
 static int download_bootloader(nv3p_handle_t h3p, char *filename,
 			       uint32_t entry, uint32_t loadaddr);
+static int read_bct(nv3p_handle_t h3p, char *filename);
 
 enum cmdline_opts {
 	OPT_BCT,
@@ -88,6 +89,14 @@ static void print_version(char *progname)
 static void usage(char *progname)
 {
 	fprintf(stderr, "usage: %s [options] --bct=bctfile --bootloader=blfile --loadaddr=<loadaddr>\n", progname);
+	fprintf(stderr, "       %s [options] --bct=bctfile readbct\n", progname);
+	fprintf(stderr, "\n");
+	fprintf(stderr, "Commands:\n");
+	fprintf(stderr, "\treadbct\n");
+	fprintf(stderr, "\t\tRead the BCT from the target device and write to bctfile\n");
+	fprintf(stderr, "\n");
+	fprintf(stderr, "\tDefault operation if no command is specified will download BCT and\n");
+	fprintf(stderr, "\tbootloader to device and start execution of bootloader\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "Options:\n");
 	fprintf(stderr, "\t--entryaddr=<entryaddr>\n");
@@ -116,6 +125,7 @@ int main(int argc, char **argv)
 	uint32_t loadaddr = 0;
 	uint32_t entryaddr = 0;
 	uint16_t devid;
+	int do_read = 0;
 
 	static struct option long_options[] = {
 		[OPT_BCT]        = {"bct", 1, 0, 0},
@@ -152,6 +162,7 @@ int main(int argc, char **argv)
 			case OPT_VERSION:
 				print_version(argv[0]);
 				exit(0);
+				break;
 			case OPT_HELP:
 			default:
 				usage(argv[0]);
@@ -165,29 +176,43 @@ int main(int argc, char **argv)
 		}
 	}
 
+	while (optind < argc) {
+		if (!(strcmp(argv[optind], "readbct")))
+			do_read = 1;
+		else {
+			fprintf(stderr, "%s: Unknown command line argument: %s\n",
+				argv[0], argv[optind]);
+			usage(argv[0]);
+			exit(EXIT_FAILURE);
+		}
+		optind++;
+	}
+
 	if (bctfile == NULL) {
 		fprintf(stderr, "BCT file must be specified\n");
 		usage(argv[0]);
 		exit(EXIT_FAILURE);
 	}
-	if (blfile == NULL) {
-		fprintf(stderr, "bootloader file must be specified\n");
-		usage(argv[0]);
-		exit(EXIT_FAILURE);
-	}
-	if (loadaddr == 0) {
-		fprintf(stderr, "loadaddr must be specified\n");
-		usage(argv[0]);
-		exit(EXIT_FAILURE);
-	}
-	if (entryaddr == 0) {
-		entryaddr = loadaddr;
-	}
-
 	printf("bct file: %s\n", bctfile);
-	printf("booloader file: %s\n", blfile);
-	printf("load addr 0x%x\n", loadaddr);
-	printf("entry addr 0x%x\n", entryaddr);
+
+	if (!do_read) {
+		if (blfile == NULL) {
+			fprintf(stderr, "bootloader file must be specified\n");
+			usage(argv[0]);
+			exit(EXIT_FAILURE);
+		}
+		if (loadaddr == 0) {
+			fprintf(stderr, "loadaddr must be specified\n");
+			usage(argv[0]);
+			exit(EXIT_FAILURE);
+		}
+		if (entryaddr == 0) {
+			entryaddr = loadaddr;
+		}
+		printf("booloader file: %s\n", blfile);
+		printf("load addr 0x%x\n", loadaddr);
+		printf("entry addr 0x%x\n", entryaddr);
+	}
 
 	usb = usb_open(USB_VENID_NVIDIA, &devid);
 	if (!usb)
@@ -218,6 +243,16 @@ int main(int argc, char **argv)
 	ret = nv3p_open(&h3p, usb);
 	if (ret)
 		error(1, errno, "3p open failed");
+
+	// read the BCT
+	if (do_read) {
+		printf("reading BCT from system, writing to %s...", bctfile);
+		ret = read_bct(h3p, bctfile);
+		if (ret)
+			error(1, errno, "error reading bct");
+		printf("done!\n");
+		exit(0);
+	}
 
 	// get platform info and dump it
 	ret = nv3p_cmd_send(h3p, NV3P_CMD_GET_PLATFORM_INFO, (uint8_t *)&info);
@@ -594,6 +629,62 @@ static int download_bct(nv3p_handle_t h3p, char *filename)
 	return 0;
 }
 
+
+static int read_bct(nv3p_handle_t h3p, char *filename)
+{
+	int ret;
+	nv3p_bct_info_t bct_info;
+	uint8_t *bct_data = NULL;
+	int fd = -1;
+	uint8_t *buf;
+
+	ret = nv3p_cmd_send(h3p, NV3P_CMD_GET_BCT, (uint8_t *)&bct_info);
+	if (ret) {
+		dprintf("error sending get bct command\n");
+		goto out;
+	}
+	ret = wait_status(h3p);
+	if (ret) {
+		dprintf("error waiting for status after get bct\n");
+		goto out;
+	}
+
+	bct_data = (uint8_t *)malloc(bct_info.length);
+	ret = nv3p_data_recv(h3p, bct_data, bct_info.length);
+	if (ret) {
+		dprintf("error retreiving bct data\n");
+		goto out;
+	}
+
+	fd = open(filename, O_WRONLY | O_CREAT, 0644);
+	if (fd < 0) {
+		dprintf("error opening %s for reading\n", filename);
+		ret = errno;
+		goto out;
+	}
+
+	buf = bct_data;
+	while(bct_info.length > 0) {
+		ssize_t written = write(fd, buf, bct_info.length);
+		if (written == -1) {
+			if (errno == EINTR)
+				continue;
+			dprintf("error writing to %s\n", filename);
+			ret = errno;
+			goto out;
+		}
+		buf += written;
+		bct_info.length -= written;
+	}
+
+	ret = 0;
+out:
+	if (bct_data)
+		free(bct_data);
+	if (fd >= 0)
+		close(fd);
+	return ret;
+}
 
 static int download_bootloader(nv3p_handle_t h3p, char *filename,
 			       uint32_t entry, uint32_t loadaddr)

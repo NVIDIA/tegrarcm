@@ -39,6 +39,7 @@
 
 // commands
 #define NV3P_CMD_GET_PLATFORM_INFO       0x01
+#define NV3P_CMD_GET_BCT                 0x02
 #define NV3P_CMD_DL_BCT                  0x04
 #define NV3P_CMD_DL_BL                   0x06
 #define NV3P_CMD_STATUS                  0x0a
@@ -155,6 +156,20 @@ typedef struct {
 
 
 /*
+ * nv3p_bct_info_t: holds information about BCT size
+ */
+typedef struct {
+	uint32_t length;
+} nv3p_bct_info_t;
+
+/*
+ * nv3p_cmd_get_bct_t: retrieves the BCT from the device
+ */
+typedef struct {
+	uint32_t length;
+} nv3p_cmd_get_bct_t;
+
+/*
  * nv3p_cmd_dl_bct_t: downloads the system's BCT.
  */
 typedef struct {
@@ -176,5 +191,6 @@ int nv3p_cmd_send(nv3p_handle_t h3p, uint32_t command, void *args);
 int nv3p_cmd_recv(nv3p_handle_t h3p, uint32_t *command,	void **args);
 int nv3p_data_send(nv3p_handle_t h3p, uint8_t *data, uint32_t length);
 void nv3p_ack(nv3p_handle_t h3p);
+int nv3p_data_recv(nv3p_handle_t h3p, uint8_t *data, uint32_t length);
 
 #endif // NV3P_H
