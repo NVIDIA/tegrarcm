@@ -60,6 +60,7 @@
 // tegra124 miniloader
 #include "miniloader/tegra124-miniloader.h"
 
+static int initialize_rcm(uint16_t devid, usb_device_t *usb);
 static int wait_status(nv3p_handle_t h3p);
 static int send_file(nv3p_handle_t h3p, const char *filename);
 static int download_miniloader(usb_device_t *usb, uint8_t *miniloader,
@@ -95,11 +96,9 @@ static void usage(char *progname)
 int main(int argc, char **argv)
 {
 	// discover devices
-	uint8_t *msg_buff;
 	uint64_t uid[2];
 	int actual_len;
 	usb_device_t *usb;
-	uint32_t status;
 	nv3p_platform_info_t info;
 	nv3p_handle_t h3p;
 	int ret;
@@ -110,10 +109,6 @@ int main(int argc, char **argv)
 	uint32_t loadaddr = 0;
 	uint32_t entryaddr = 0;
 	uint16_t devid;
-	uint8_t *miniloader;
-	uint32_t miniloader_size;
-	uint32_t miniloader_entry;
-	int msg_len;
 
 	static struct option long_options[] = {
 		[OPT_BCT]        = {"bct", 1, 0, 0},
@@ -193,86 +188,24 @@ int main(int argc, char **argv)
 	printf("device id: 0x%x\n", devid);
 
 	ret = usb_read(usb, (uint8_t *)uid, sizeof(uid), &actual_len);
-	if (ret)
-		error(1, ret, "USB transfer failure");
-	if (actual_len == 8)
-		printf("uid:  0x%016" PRIx64 "\n", uid[0]);
-	else if (actual_len == 16)
-		printf("uid:  0x%016" PRIx64 "%016" PRIx64 "\n",
-		       uid[1], uid[0]);
-	else
-		error(1, errno, "USB read truncated");
+	if (!ret) {
+		if (actual_len == 8)
+			printf("uid:  0x%016" PRIx64 "\n", uid[0]);
+		else if (actual_len == 16)
+			printf("uid:  0x%016" PRIx64 "%016" PRIx64 "\n",
+			       uid[1], uid[0]);
+		else
+			error(1, errno, "USB read truncated");
 
-	// initialize RCM
-	if ((devid & 0xff) == USB_DEVID_NVIDIA_TEGRA20 ||
-	    (devid & 0xff) == USB_DEVID_NVIDIA_TEGRA30) {
-		dprintf("initializing RCM version 1\n");
-		ret = rcm_init(RCM_VERSION_1);
-	} else if ((devid & 0xff) == USB_DEVID_NVIDIA_TEGRA114) {
-		dprintf("initializing RCM version 35\n");
-		ret = rcm_init(RCM_VERSION_35);
-	} else if ((devid & 0xff) == USB_DEVID_NVIDIA_TEGRA124) {
-		dprintf("initializing RCM version 40\n");
-		ret = rcm_init(RCM_VERSION_40);
-	} else {
-		error(1, ENODEV, "unknown tegra device: 0x%x", devid);
+		// initialize rcm and download the miniloader to start nv3p
+		initialize_rcm(devid, usb);
+
+		// device may have re-enumerated, so reopen USB
+		usb_close(usb);
+		usb = usb_open(USB_VENID_NVIDIA, &devid);
+		if (!usb)
+			error(1, errno, "could not open USB device");
 	}
-	if (ret)
-		error(1, errno, "RCM initialize failed");
-
-	// create query version message
-	rcm_create_msg(RCM_CMD_QUERY_RCM_VERSION, NULL, 0, NULL, 0, &msg_buff);
-
-	// write query version message to device
-	msg_len = rcm_get_msg_len(msg_buff);
-	if (msg_len == 0)
-		error(1, EINVAL, "unknown message length");
-	ret = usb_write(usb, msg_buff, msg_len);
-	if (ret)
-		error(1, errno, "write query version - USB transfer failure");
-	free(msg_buff);
-	msg_buff = NULL;
-
-	// read response
-	ret = usb_read(usb, (uint8_t *)&status, sizeof(status), &actual_len);
-	if (ret)
-		error(1, ret, "read query version - USB transfer failure");
-	if (actual_len < sizeof(status))
-		error(1, EIO, "read query version - USB read truncated");
-	printf("RCM version: %d.%d\n", RCM_VERSION_MAJOR(status),
-	       RCM_VERSION_MINOR(status));
-
-	printf("downloading miniloader to target...\n");
-	if ((devid & 0xff) == USB_DEVID_NVIDIA_TEGRA20) {
-		miniloader = miniloader_tegra20;
-		miniloader_size = sizeof(miniloader_tegra20);
-		miniloader_entry = TEGRA20_MINILOADER_ENTRY;
-	} else if ((devid & 0xff) == USB_DEVID_NVIDIA_TEGRA30) {
-		miniloader = miniloader_tegra30;
-		miniloader_size = sizeof(miniloader_tegra30);
-		miniloader_entry = TEGRA30_MINILOADER_ENTRY;
-	} else if ((devid & 0xff) == USB_DEVID_NVIDIA_TEGRA114) {
-		miniloader = miniloader_tegra114;
-		miniloader_size = sizeof(miniloader_tegra114);
-		miniloader_entry = TEGRA114_MINILOADER_ENTRY;
-	} else if ((devid & 0xff) == USB_DEVID_NVIDIA_TEGRA124) {
-		miniloader = miniloader_tegra124;
-		miniloader_size = sizeof(miniloader_tegra124);
-		miniloader_entry = TEGRA124_MINILOADER_ENTRY;
-	} else {
-		error(1, ENODEV, "unknown tegra device: 0x%x", devid);
-	}
-	ret = download_miniloader(usb, miniloader, miniloader_size,
-				  miniloader_entry);
-	if (ret)
-		error(1, ret, "Error downloading miniloader");
-	printf("miniloader downloaded successfully\n");
-
-	// device may have re-enumerated, so reopen USB
-	usb_close(usb);
-	usb = usb_open(USB_VENID_NVIDIA, &devid);
-	if (!usb)
-		error(1, errno, "could not open USB device");
 
 	// now that miniloader is up, start nv3p protocol
 	ret = nv3p_open(&h3p, usb);
@@ -307,6 +240,99 @@ int main(int argc, char **argv)
 
 	nv3p_close(h3p);
 	usb_close(usb);
+
+	return 0;
+}
+
+static int initialize_rcm(uint16_t devid, usb_device_t *usb)
+{
+	int ret;
+	uint8_t *msg_buff;
+	int msg_len;
+	uint32_t status;
+	int actual_len;
+	uint8_t *miniloader;
+	uint32_t miniloader_size;
+	uint32_t miniloader_entry;
+
+	// initialize RCM
+	if ((devid & 0xff) == USB_DEVID_NVIDIA_TEGRA20 ||
+	    (devid & 0xff) == USB_DEVID_NVIDIA_TEGRA30) {
+		dprintf("initializing RCM version 1\n");
+		ret = rcm_init(RCM_VERSION_1);
+	} else if ((devid & 0xff) == USB_DEVID_NVIDIA_TEGRA114) {
+		dprintf("initializing RCM version 35\n");
+		ret = rcm_init(RCM_VERSION_35);
+	} else if ((devid & 0xff) == USB_DEVID_NVIDIA_TEGRA124) {
+		dprintf("initializing RCM version 40\n");
+		ret = rcm_init(RCM_VERSION_40);
+	} else {
+		fprintf(stderr, "unknown tegra device: 0x%x\n", devid);
+		return errno;
+	}
+	if (ret) {
+		fprintf(stderr, "RCM initialize failed\n");
+		return ret;
+	}
+
+	// create query version message
+	rcm_create_msg(RCM_CMD_QUERY_RCM_VERSION, NULL, 0, NULL, 0, &msg_buff);
+
+	// write query version message to device
+	msg_len = rcm_get_msg_len(msg_buff);
+	if (msg_len == 0) {
+		fprintf(stderr, "write RCM query version: unknown message length\n");
+		return EINVAL;
+	}
+	ret = usb_write(usb, msg_buff, msg_len);
+	if (ret) {
+		fprintf(stderr, "write RCM query version: USB transfer failure\n");
+		return ret;
+	}
+	free(msg_buff);
+	msg_buff = NULL;
+
+	// read response
+	ret = usb_read(usb, (uint8_t *)&status, sizeof(status), &actual_len);
+	if (ret) {
+		fprintf(stderr, "read RCM query version: USB transfer failure\n");
+		return ret;
+	}
+	if (actual_len < sizeof(status)) {
+		fprintf(stderr, "read RCM query version: USB read truncated\n");
+		return EIO;
+	}
+	printf("RCM version: %d.%d\n", RCM_VERSION_MAJOR(status),
+	       RCM_VERSION_MINOR(status));
+
+	printf("downloading miniloader to target...\n");
+	if ((devid & 0xff) == USB_DEVID_NVIDIA_TEGRA20) {
+		miniloader = miniloader_tegra20;
+		miniloader_size = sizeof(miniloader_tegra20);
+		miniloader_entry = TEGRA20_MINILOADER_ENTRY;
+	} else if ((devid & 0xff) == USB_DEVID_NVIDIA_TEGRA30) {
+		miniloader = miniloader_tegra30;
+		miniloader_size = sizeof(miniloader_tegra30);
+		miniloader_entry = TEGRA30_MINILOADER_ENTRY;
+	} else if ((devid & 0xff) == USB_DEVID_NVIDIA_TEGRA114) {
+		miniloader = miniloader_tegra114;
+		miniloader_size = sizeof(miniloader_tegra114);
+		miniloader_entry = TEGRA114_MINILOADER_ENTRY;
+	} else if ((devid & 0xff) == USB_DEVID_NVIDIA_TEGRA124) {
+		miniloader = miniloader_tegra124;
+		miniloader_size = sizeof(miniloader_tegra124);
+		miniloader_entry = TEGRA124_MINILOADER_ENTRY;
+	} else {
+		fprintf(stderr, "unknown tegra device: 0x%x\n", devid);
+		return ENODEV;
+	}
+	ret = download_miniloader(usb, miniloader, miniloader_size,
+				  miniloader_entry);
+	if (ret) {
+		fprintf(stderr, "Error downloading miniloader\n");
+		return ret;
+	}
+	printf("miniloader downloaded successfully\n");
 
 	return 0;
 }
