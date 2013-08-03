@@ -84,6 +84,7 @@ static int download_bootloader(nv3p_handle_t h3p, char *filename,
 static int download_mts(nv3p_handle_t h3p, char *filename,
 			uint32_t loadaddr, uint16_t devid);
 static int read_bct(nv3p_handle_t h3p, char *filename);
+static int send_odmdata(nv3p_handle_t h3p, uint32_t odmdata);
 
 enum cmdline_opts {
 	OPT_BCT,
@@ -98,6 +99,7 @@ enum cmdline_opts {
 	OPT_PREBOOTENTRY,
 	OPT_MTS,
 	OPT_MTSENTRY,
+	OPT_ODMDATA,
 	OPT_END,
 };
 
@@ -167,6 +169,7 @@ int main(int argc, char **argv)
 	uint32_t pbentry = 0;
 	char *mtsfile = NULL;
 	uint32_t mtsentry = 0;
+	uint32_t odmdata = 0;
 
 	static struct option long_options[] = {
 		[OPT_BCT]        = {"bct", 1, 0, 0},
@@ -181,6 +184,7 @@ int main(int argc, char **argv)
 		[OPT_PREBOOTENTRY] = {"preboot_entry", 1, 0, 0},
 		[OPT_MTS]        = {"mts", 1, 0, 0},
 		[OPT_MTSENTRY]   = {"mts_entry", 1, 0, 0},
+		[OPT_ODMDATA]    = {"odmdata", 1, 0, 0},
 		[OPT_END]        = {0, 0, 0, 0}
 	};
 
@@ -227,6 +231,9 @@ int main(int argc, char **argv)
 				break;
 			case OPT_MTSENTRY:
 				mtsentry = strtoul(optarg, NULL, 0);
+				break;
+			case OPT_ODMDATA:
+				odmdata = strtoul(optarg, NULL, 0);
 				break;
 			case OPT_HELP:
 			default:
@@ -331,6 +338,14 @@ int main(int argc, char **argv)
 			error(1, errno, "error reading bct");
 		printf("done!\n");
 		exit(0);
+	}
+
+	if (odmdata) {
+		printf("sending odm data (0x%x) to target...\n", odmdata);
+		ret = send_odmdata(h3p, odmdata);
+		if (ret)
+			error(1, ret, "error sending ODM data");
+		printf("odm data sent successfully\n");
 	}
 
 	// get platform info and dump it
@@ -910,6 +925,26 @@ out:
 	if (fd >= 0)
 		close(fd);
 	return ret;
+}
+
+static int send_odmdata(nv3p_handle_t h3p, uint32_t odmdata)
+{
+	int ret;
+	nv3p_cmd_send_odmdata_t odm_info;
+
+	odm_info.odmdata = odmdata;
+	ret = nv3p_cmd_send(h3p, NV3P_CMD_SEND_ODMDATA, (uint8_t *)&odm_info);
+	if (ret) {
+		dprintf("error sending send odmdata command\n");
+		return ret;
+	}
+	ret = wait_status(h3p);
+	if (ret) {
+		dprintf("error waiting for status after get bct\n");
+		return ret;
+	}
+
+	return 0;
 }
 
 static int download_bootloader(nv3p_handle_t h3p, char *filename,

@@ -42,6 +42,7 @@
 #define NV3P_CMD_GET_BCT                 0x02
 #define NV3P_CMD_DL_BCT                  0x04
 #define NV3P_CMD_DL_BL                   0x06
+#define NV3P_CMD_SEND_ODMDATA            0x07
 #define NV3P_CMD_STATUS                  0x0a
 #define NV3P_CMD_DL_MTS                  0x33
 
@@ -218,6 +219,13 @@ typedef struct {
 	uint32_t length;
 	uint32_t address; // Load address
 } nv3p_cmd_dl_mts_t;
+
+/*
+ * nv3p_cmd_send_odmdata_t: send ODMDATA to the device
+ */
+typedef struct {
+	uint32_t odmdata;
+} nv3p_cmd_send_odmdata_t;
 
 int nv3p_open(nv3p_handle_t *h3p, usb_device_t *usb);
 void nv3p_close(nv3p_handle_t h3p);

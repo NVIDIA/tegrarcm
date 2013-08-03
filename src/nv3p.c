@@ -357,6 +357,15 @@ static void nv3p_write_cmd(nv3p_handle_t h3p, uint32_t command, void *args,
 		WRITE32(tmp, a->address);
 		break;
 	}
+	case NV3P_CMD_SEND_ODMDATA:
+	{
+		nv3p_cmd_send_odmdata_t *a = (nv3p_cmd_send_odmdata_t *)args;
+	        *length = (1 * 4);
+		WRITE32(tmp, *length);
+		WRITE32(tmp, command);
+		WRITE32(tmp, a->odmdata);
+	        break;
+	}
 	default:
 		dprintf("bad command: 0x%x\n", command);
 		break;
@@ -435,6 +444,7 @@ static int nv3p_get_cmd_return(nv3p_handle_t h3p, uint32_t command, void *args)
 	case NV3P_CMD_DL_BCT:
 	case NV3P_CMD_DL_BL:
 	case NV3P_CMD_DL_MTS:
+	case NV3P_CMD_SEND_ODMDATA:
 		break;
 	default:
 		dprintf("unknown command: 0x%x\n", command);
@@ -676,6 +686,12 @@ static int nv3p_get_args(nv3p_handle_t h3p, uint32_t command, void **args,
 		nv3p_cmd_dl_mts_t *a = (nv3p_cmd_dl_mts_t *)buf;
 		READ32(tmp, a->length);
 		READ32(tmp, a->address);
+		break;
+	}
+	case NV3P_CMD_SEND_ODMDATA:
+	{
+		nv3p_cmd_send_odmdata_t *a = (nv3p_cmd_send_odmdata_t *)buf;
+		READ32(tmp, a->odmdata);
 		break;
 	}
 	default:
