@@ -73,6 +73,12 @@ Print the version number and exit.
 .B \-\-help
 Print help text and exit.
 .TP
+.B \-\-miniloader \fImlfile\fP
+Read the miniloader from the specified file instead of using the
+built-in one.
+.TP
+.B \-\-miniloader_entry \fImlentry\fP
+Specify the entry address of the miniloader.
 
 .SH EXAMPLES
 To download u-boot firmware to a Tegra20 seaboard:
