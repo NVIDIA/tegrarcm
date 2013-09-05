@@ -87,9 +87,16 @@ static void print_version(char *progname)
 
 static void usage(char *progname)
 {
-	fprintf(stderr, "usage: %s --bct=bctfile --bootloader=blfile --loadaddr=<loadaddr> --entryaddr=<entryaddr>\n", progname);
+	fprintf(stderr, "usage: %s [options] --bct=bctfile --bootloader=blfile --loadaddr=<loadaddr>\n", progname);
 	fprintf(stderr, "\n");
-	fprintf(stderr, "\tIf entryaddr is not specified, it's assumed to be the same as loadaddr\n");
+	fprintf(stderr, "Options:\n");
+	fprintf(stderr, "\t--entryaddr=<entryaddr>\n");
+	fprintf(stderr, "\t\tSpecify the entry point for the bootloader, if this option is\n");
+	fprintf(stderr, "\t\tnot provided, it is assumed to be loadaddr\n");
+	fprintf(stderr, "\t--help\n");
+	fprintf(stderr, "\t\tPrint this help information\n");
+	fprintf(stderr, "\t--version\n");
+	fprintf(stderr, "\t\tPrint version information and exit\n");
 	fprintf(stderr, "\n");
 }
 
