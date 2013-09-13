@@ -460,26 +460,29 @@ static void dump_platform_info(nv3p_platform_info_t *info)
 	char *chip_name = NULL;
 	if (info->chip_id.id == 0x20) {
 		switch (info->sku) {
-		case TEGRA2_CHIP_SKU_AP20:   chip_name = "ap20"; break;
-		case TEGRA2_CHIP_SKU_T20:    chip_name = "t20"; break;
+		case TEGRA2_CHIP_SKU_AP20:   chip_name = "ap20";  break;
 		case TEGRA2_CHIP_SKU_T25SE:  chip_name = "t25se"; break;
-		case TEGRA2_CHIP_SKU_AP25:   chip_name = "ap25"; break;
-		case TEGRA2_CHIP_SKU_T25:    chip_name = "t25"; break;
+		case TEGRA2_CHIP_SKU_AP25:   chip_name = "ap25";  break;
+		case TEGRA2_CHIP_SKU_T25:    chip_name = "t25";   break;
 		case TEGRA2_CHIP_SKU_AP25E:  chip_name = "ap25e"; break;
-		case TEGRA2_CHIP_SKU_T25E:   chip_name = "t25e"; break;
-		default: chip_name = "unknown"; break;
+		case TEGRA2_CHIP_SKU_T25E:   chip_name = "t25e";  break;
+		case TEGRA2_CHIP_SKU_T20:
+		case TEGRA2_CHIP_SKU_T20_7:
+		default: chip_name = "t20"; break;
 		}
 	} else if (info->chip_id.id == 0x30) {
 		switch (info->sku) {
-		case TEGRA3_CHIP_SKU_AP30:   chip_name = "ap30"; break;
-		case TEGRA3_CHIP_SKU_T30:    chip_name = "t30"; break;
-		case TEGRA3_CHIP_SKU_T30S:   chip_name = "t30s"; break;
-		default: chip_name = "unknown"; break;
+		case TEGRA3_CHIP_SKU_AP30:   chip_name = "ap30";  break;
+		case TEGRA3_CHIP_SKU_T30S:   chip_name = "t30s";  break;
+		case TEGRA3_CHIP_SKU_T33:    chip_name = "t33";   break;
+		case TEGRA3_CHIP_SKU_T30:
+		default: chip_name = "t30"; break;
 		}
 	} else if (info->chip_id.id == 0x35) {
 		switch (info->sku) {
-		case TEGRA114_CHIP_SKU_T114: chip_name = "t114"; break;
-		default: chip_name = "unknown"; break;
+		case TEGRA114_CHIP_SKU_T114:
+		case TEGRA114_CHIP_SKU_T114_1:
+		default: chip_name = "t114"; break;
 		}
 	} else {
 		chip_name = "unknown";

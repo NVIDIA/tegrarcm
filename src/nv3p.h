@@ -53,6 +53,7 @@ typedef struct nv3p_state *nv3p_handle_t;
 
 // tegra2 chip sku
 #define TEGRA2_CHIP_SKU_AP20     0x01
+#define TEGRA2_CHIP_SKU_T20_7    0x07
 #define TEGRA2_CHIP_SKU_T20      0x08
 #define TEGRA2_CHIP_SKU_T25SE    0x14
 #define TEGRA2_CHIP_SKU_AP25     0x17
@@ -64,9 +65,11 @@ typedef struct nv3p_state *nv3p_handle_t;
 #define TEGRA3_CHIP_SKU_AP30     0x87
 #define TEGRA3_CHIP_SKU_T30      0x81
 #define TEGRA3_CHIP_SKU_T30S     0x83
+#define TEGRA3_CHIP_SKU_T33      0X80
 
 // tegra114 chip sku
 #define TEGRA114_CHIP_SKU_T114   0x00
+#define TEGRA114_CHIP_SKU_T114_1 0x01
 
 // boot device type
 #define NV3P_DEV_TYPE_NAND              0x1
