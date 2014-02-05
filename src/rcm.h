@@ -47,6 +47,7 @@
 #define RCM_CMD_QUERY_BR_VERSION   0x5
 #define RCM_CMD_QUERY_RCM_VERSION  0x6
 #define RCM_CMD_QUERY_BD_VERSION   0x7
+#define RCM_CMD_DL_MTS             0xb
 
 // AES block size in bytes
 #define RCM_AES_BLOCK_SIZE      (128 / 8)

@@ -43,6 +43,7 @@
 #define NV3P_CMD_DL_BCT                  0x04
 #define NV3P_CMD_DL_BL                   0x06
 #define NV3P_CMD_STATUS                  0x0a
+#define NV3P_CMD_DL_MTS                  0x33
 
 // nack codes
 #define NV3P_NACK_SUCCESS                0x1
@@ -187,6 +188,14 @@ typedef struct {
 	uint32_t address; // Load address
 	uint32_t entry; // Execution entry point
 } nv3p_cmd_dl_bl_t;
+
+/*
+ * nv3p_cmd_dl_mts_t: downloads the mts ucode.
+ */
+typedef struct {
+	uint32_t length;
+	uint32_t address; // Load address
+} nv3p_cmd_dl_mts_t;
 
 int nv3p_open(nv3p_handle_t *h3p, usb_device_t *usb);
 void nv3p_close(nv3p_handle_t h3p);
