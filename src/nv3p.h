@@ -156,7 +156,29 @@ typedef struct {
 	uint32_t sdram_conf_strap;
 	uint32_t reserved[2];
 	nv3p_board_id_t board_id;
+	uint32_t warranty_fuse;
+	uint8_t skip_auto_detect;
 } nv3p_platform_info_t;
+
+/*
+ * nv3p_platform_info_t: retrieves the system information. All paramters
+ * are output parameters.
+ */
+typedef struct {
+	uint64_t uid[2];
+	nv3p_chip_id_t chip_id;
+	uint32_t sku;
+	uint32_t version;
+	uint32_t boot_device;
+	uint32_t op_mode;
+	uint32_t dev_conf_strap;
+	uint32_t dev_conf_fuse;
+	uint32_t sdram_conf_strap;
+	uint32_t reserved[2];
+	nv3p_board_id_t board_id;
+	uint32_t warranty_fuse;
+	uint8_t skip_auto_detect;
+} nv3p_platform_info2_t;
 
 
 /*

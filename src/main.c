@@ -334,6 +334,7 @@ int main(int argc, char **argv)
 	}
 
 	// get platform info and dump it
+	info.skip_auto_detect = 1;
 	ret = nv3p_cmd_send(h3p, NV3P_CMD_GET_PLATFORM_INFO, (uint8_t *)&info);
 	if (ret)
 		error(1, errno, "retreiving platform info");
