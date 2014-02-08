@@ -231,7 +231,7 @@ int usb_write(usb_device_t *usb, uint8_t *buf, int len)
 		ret = libusb_bulk_transfer(usb->handle, usb->endpt_out, buf,
 					   chunk_size, &actual_chunk, USB_TIMEOUT);
 		if (ret != LIBUSB_SUCCESS) {
-			dprintf("write failure: %d\n", ret);
+			dprintf("libusb write failure: %d: %s\n", ret, libusb_error_name(ret));
 			return EIO;
 		}
 		if (actual_chunk != chunk_size) {
@@ -258,7 +258,7 @@ int usb_read(usb_device_t *usb, uint8_t *buf, int len, int *actual_len)
 		ret = libusb_bulk_transfer(usb->handle, usb->endpt_in, buf,
 					   chunk_size, &actual_chunk, USB_TIMEOUT);
 		if (ret != LIBUSB_SUCCESS) {
-			dprintf("read failure: %d\n", ret);
+			dprintf("libusb read failure: %d: %s\n", ret, libusb_error_name(ret));
 			return EIO;
 		}
 		len -= chunk_size;
