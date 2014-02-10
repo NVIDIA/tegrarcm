@@ -991,6 +991,12 @@ static int download_bootloader(nv3p_handle_t h3p, char *filename,
 		return ret;
 	}
 
+	ret = wait_status(h3p);
+	if (ret) {
+		dprintf("error waiting for status on bootloader dl\n");
+		return ret;
+	}
+
 	return 0;
 }
 

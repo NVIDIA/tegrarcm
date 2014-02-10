@@ -35,7 +35,7 @@
 #include "debug.h"
 
 // USB xfer timeout in ms
-#define USB_TIMEOUT 1000
+#define USB_TIMEOUT 3000
 
 #define USB_XFER_MAX 4096
 
