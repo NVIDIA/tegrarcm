@@ -107,6 +107,7 @@ typedef struct {
 // security operating modes
 #define RCM_OP_MODE_PRE_PRODUCTION  0x1
 #define RCM_OP_MODE_DEVEL           0x3
+#define RCM_OP_MODE_ODM_SECURE      0x4
 #define RCM_OP_MODE_ODM_OPEN        0x5
 
 int rcm_init(uint32_t version);
