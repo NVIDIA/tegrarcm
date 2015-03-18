@@ -809,7 +809,7 @@ static int nv3p_read(usb_device_t *usb, uint8_t *buf, int len)
 	if (len > bytesleft) {
 		ret = usb_read(usb, packet, sizeof(packet), &actual_len);
 		if (ret) {
-			dprintf("USB read failed\n");
+			dprintf("USB read failed: %d\n", ret);
 			return ret;
 		}
 
