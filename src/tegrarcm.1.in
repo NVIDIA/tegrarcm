@@ -81,6 +81,13 @@ built-in one.
 .TP
 .B \-\-miniloader_entry \fImlentry\fP
 Specify the entry address of the miniloader.
+.TP
+.B \-\-preboot \fIpbfile\fP
+Read the preboot mts ucode from the specified file instead of using the
+built-in one.
+.TP
+.B \-\-preboot_entry \fIpbentry\fP
+Specify the entry address of the preboot mts ucode.
 
 .SH EXAMPLES
 To download u-boot firmware to a Tegra20 seaboard:

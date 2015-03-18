@@ -52,6 +52,7 @@
 /*   NV3P_CMD_DL_BCT                 */
 /*   NV3P_CMD_DL_BL                  */
 /*   NV3P_CMD_STATUS                 */
+/*   NV3P_CMD_DL_MTS                 */
 /*-----------------------------------*/
 /* command arguments                 */
 /*                 .                 */
@@ -346,6 +347,16 @@ static void nv3p_write_cmd(nv3p_handle_t h3p, uint32_t command, void *args,
 		WRITE32(tmp, a->entry);
 		break;
 	}
+	case NV3P_CMD_DL_MTS:
+	{
+		nv3p_cmd_dl_mts_t *a = (nv3p_cmd_dl_mts_t *)args;
+		*length = sizeof(nv3p_cmd_dl_mts_t);
+		WRITE32(tmp, *length);
+		WRITE32(tmp, command);
+		WRITE32(tmp, a->length);
+		WRITE32(tmp, a->address);
+		break;
+	}
 	default:
 		dprintf("bad command: 0x%x\n", command);
 		break;
@@ -423,6 +434,7 @@ static int nv3p_get_cmd_return(nv3p_handle_t h3p, uint32_t command, void *args)
 		break;
 	case NV3P_CMD_DL_BCT:
 	case NV3P_CMD_DL_BL:
+	case NV3P_CMD_DL_MTS:
 		break;
 	default:
 		dprintf("unknown command: 0x%x\n", command);
@@ -657,6 +669,13 @@ static int nv3p_get_args(nv3p_handle_t h3p, uint32_t command, void **args,
 		READ64(tmp, a->length);
 		READ32(tmp, a->address);
 		READ32(tmp, a->entry);
+		break;
+	}
+	case NV3P_CMD_DL_MTS:
+	{
+		nv3p_cmd_dl_mts_t *a = (nv3p_cmd_dl_mts_t *)buf;
+		READ32(tmp, a->length);
+		READ32(tmp, a->address);
 		break;
 	}
 	default:
