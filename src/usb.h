@@ -36,6 +36,7 @@
 #define USB_DEVID_NVIDIA_TEGRA30 0x30
 #define USB_DEVID_NVIDIA_TEGRA114 0x35
 #define USB_DEVID_NVIDIA_TEGRA124 0x40
+#define USB_DEVID_NVIDIA_TEGRA132 0x13
 
 typedef struct {
 	libusb_device_handle *handle;

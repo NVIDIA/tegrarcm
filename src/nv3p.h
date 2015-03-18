@@ -75,6 +75,9 @@ typedef struct nv3p_state *nv3p_handle_t;
 // tegra124 chip sku
 #define TEGRA124_CHIP_SKU_T124   0x00
 
+// tegra132 chip sku
+#define TEGRA132_CHIP_SKU_T132   0x00
+
 // boot device type
 #define NV3P_DEV_TYPE_NAND              0x1
 #define NV3P_DEV_TYPE_EMMC              0x2
