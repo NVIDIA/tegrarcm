@@ -94,6 +94,7 @@ enum cmdline_opts {
 	OPT_VERSION,
 	OPT_MINILOADER,
 	OPT_MINIENTRY,
+	OPT_MINIENTRY1,
 	OPT_PREBOOT,
 	OPT_PREBOOTENTRY,
 	OPT_MTS,
@@ -181,6 +182,7 @@ int main(int argc, char **argv)
 		[OPT_VERSION]    = {"version", 0, 0, 0},
 		[OPT_MINILOADER] = {"miniloader", 1, 0, 0},
 		[OPT_MINIENTRY]  = {"miniloader_entry", 1, 0, 0},
+		[OPT_MINIENTRY1] = {"miniloader-entry", 1, 0, 0},
 		[OPT_PREBOOT]    = {"preboot", 1, 0, 0},
 		[OPT_PREBOOTENTRY] = {"preboot-entry", 1, 0, 0},
 		[OPT_MTS]        = {"mts", 1, 0, 0},
@@ -219,6 +221,7 @@ int main(int argc, char **argv)
 				mlfile = optarg;
 				break;
 			case OPT_MINIENTRY:
+			case OPT_MINIENTRY1:
 				mlentry = strtoul(optarg, NULL, 0);
 				break;
 			case OPT_PREBOOT:
