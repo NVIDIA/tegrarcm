@@ -139,7 +139,7 @@ usb_device_t *usb_open(uint16_t venid, uint16_t *devid)
 {
 	libusb_device **list = NULL;
 	libusb_device *found = NULL;
-	ssize_t cnt, i=0;
+	ssize_t cnt, i = 0;
 	usb_device_t *usb = NULL;
 
 	if (libusb_init(NULL)) {
@@ -175,7 +175,7 @@ usb_device_t *usb_open(uint16_t venid, uint16_t *devid)
 		goto fail;
 	}
 
-	usb = (usb_device_t *)malloc(sizeof(usb_device_t));
+	usb = malloc(sizeof(usb_device_t));
 	if (!usb) {
 		dprintf("out of mem\n");
 		goto fail;

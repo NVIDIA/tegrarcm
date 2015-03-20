@@ -749,10 +749,9 @@ fail:
 static int download_binary(uint32_t cmd, usb_device_t *usb,
 			   uint8_t *binary, uint32_t size, uint32_t entry)
 {
-	uint8_t *msg_buff;
-	int ret;
+	int ret, actual_len;
 	uint32_t status;
-	int actual_len;
+	void *msg_buff;
 
 	// create download message
 	rcm_create_msg(cmd,
@@ -915,7 +914,7 @@ static int read_bct(nv3p_handle_t h3p, char *filename)
 		goto out;
 	}
 
-	bct_data = (uint8_t *)malloc(bct_info.length);
+	bct_data = malloc(bct_info.length);
 	ret = nv3p_data_recv(h3p, bct_data, bct_info.length);
 	if (ret) {
 		dprintf("error retreiving bct data\n");
@@ -1002,12 +1001,10 @@ static int download_bootloader(nv3p_handle_t h3p, char *filename,
 static int download_mts(nv3p_handle_t h3p, char *filename,
 			uint32_t loadaddr, uint16_t devid, char *mtsdir)
 {
-	int ret;
 	nv3p_cmd_dl_mts_t arg;
-	int fd;
 	struct stat sb;
-	uint8_t *buf;
 	char *_mtsdir = NULL;
+	int ret, fd;
 
 	if (!mtsdir && !filename) {
 		mtsdir = _mtsdir = (char *)malloc(strlen(TEGRA132_MTS_DIR) + 1);

@@ -247,10 +247,10 @@ int nv3p_open(nv3p_handle_t *h3p, usb_device_t *usb)
 {
 	nv3p_state_t *state;
 
-	state = (nv3p_state_t *)malloc(sizeof(nv3p_state_t));
-	if (!state) {
+	state = malloc(sizeof(nv3p_state_t));
+	if (!state)
 		return ENOMEM;
-	}
+
 	memset(state, 0, sizeof(nv3p_state_t));
 	state->last_nack = NV3P_NACK_SUCCESS;
 
