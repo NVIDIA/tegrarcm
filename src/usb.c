@@ -220,7 +220,7 @@ void usb_close(usb_device_t *usb)
 	libusb_exit(NULL);
 }
 
-int usb_write(usb_device_t *usb, uint8_t *buf, int len)
+int usb_write(usb_device_t *usb, const void *buf, int len)
 {
 	int ret;
 	int chunk_size;
@@ -228,7 +228,7 @@ int usb_write(usb_device_t *usb, uint8_t *buf, int len)
 
 	while (len) {
 		chunk_size = MIN(len, USB_XFER_MAX);
-		ret = libusb_bulk_transfer(usb->handle, usb->endpt_out, buf,
+		ret = libusb_bulk_transfer(usb->handle, usb->endpt_out, (void *)buf,
 					   chunk_size, &actual_chunk, USB_TIMEOUT);
 		if (ret != LIBUSB_SUCCESS) {
 			dprintf("libusb write failure: %d: %s\n", ret, libusb_error_name(ret));
@@ -245,7 +245,7 @@ int usb_write(usb_device_t *usb, uint8_t *buf, int len)
 	return 0;
 }
 
-int usb_read(usb_device_t *usb, uint8_t *buf, int len, int *actual_len)
+int usb_read(usb_device_t *usb, void *buf, int len, int *actual_len)
 {
 	int ret;
 	int chunk_size;

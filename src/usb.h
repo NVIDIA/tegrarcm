@@ -48,8 +48,8 @@ typedef struct {
 
 usb_device_t *usb_open(uint16_t venid, uint16_t *devid);
 void usb_close(usb_device_t *usb);
-int usb_write(usb_device_t *usb, uint8_t *buf, int len);
-int usb_read(usb_device_t *usb, uint8_t *buf, int len, int *actual_len);
+int usb_write(usb_device_t *usb, const void *buf, int len);
+int usb_read(usb_device_t *usb, void *buf, int len, int *actual_len);
 
 
 #endif // USB_H
