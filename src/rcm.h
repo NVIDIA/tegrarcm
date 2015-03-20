@@ -37,6 +37,7 @@
 #define RCM_VERSION_1 (NVBOOT_VERSION(1, 0))
 #define RCM_VERSION_35 (NVBOOT_VERSION(0x35, 1))
 #define RCM_VERSION_40 (NVBOOT_VERSION(0x40, 1))
+#define RCM_VERSION_21 (NVBOOT_VERSION(0x21, 1))
 #define RCM_VERSION_MAJOR(ver) ((ver) >> 16)
 #define RCM_VERSION_MINOR(ver) ((ver) & 0xffff)
 
@@ -105,20 +106,57 @@ typedef struct {
 	uint8_t padding[16];		// 274-283
 } rcm40_msg_t;
 
+typedef struct rcm21_msg {
+	uint32_t len_insecure;		// 000-003
+	/* factory secure provisioning */
+	struct {
+		uint32_t num;		// 004-007
+		uint8_t key[32];	// 008-027
+	} fsp;
+	uint8_t modulus[2048 / 8];	// 028-127
+	struct {
+		uint8_t cmac_hash[RCM_AES_BLOCK_SIZE];
+		uint8_t rsa_pss_sig[2048 / 8];
+	} object_sig;			// 128-237
+	uint8_t reserved[16];		// 238-247
+	uint32_t ecid[4];		// 248-257
+	uint32_t opcode;		// 258-25b
+	uint32_t len_secure;		// 25c-25f
+	uint32_t payload_len;		// 260-263
+	uint32_t rcm_version;		// 264-267
+	uint8_t args[48];		// 268-297
+	uint32_t secure_debug_control;	// 298-29b
+	uint32_t secure_prov_key_num;	// 29c-29f
+	uint8_t padding[8];		// 2a0-2a7
+} rcm21_msg_t;
+
 // security operating modes
 #define RCM_OP_MODE_PRE_PRODUCTION  0x1
 #define RCM_OP_MODE_DEVEL           0x3
 #define RCM_OP_MODE_ODM_SECURE      0x4
 #define RCM_OP_MODE_ODM_OPEN        0x5
 
-int rcm_init(uint32_t version);
-uint32_t rcm_get_msg_len(uint8_t *msg);
-int rcm_create_msg(
-	uint32_t opcode,
-	uint8_t *args,
-	uint32_t args_len,
-	uint8_t *payload,
-	uint32_t payload_len,
-	uint8_t **msg);
+struct rcm {
+	uint32_t version;
+	uint32_t message_size;
+
+	void (*init_msg)(const struct rcm *rcm, void *buf,
+			 uint32_t msg_len, uint32_t opcode,
+			 const void *args, uint32_t args_len,
+			 uint32_t payload_len);
+	uint32_t (*get_msg_len)(const struct rcm *rcm, const void *msg);
+	int (*sign_msg)(const struct rcm *rcm, void *buf);
+};
+
+extern const struct rcm rcm1;
+extern const struct rcm rcm35;
+extern const struct rcm rcm40;
+extern const struct rcm rcm21;
+
+int rcm_create_msg(const struct rcm *rcm, uint32_t opcode,
+		   const void *args, uint32_t args_len,
+		   const void *payload, uint32_t payload_len,
+		   void **msg);
+uint32_t rcm_get_msg_len(const struct rcm *rcm, const void *msg);
 
 #endif // _RCM_H

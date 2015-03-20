@@ -26,6 +26,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -47,42 +49,22 @@
 #include "rcm.h"
 #include "debug.h"
 #include "config.h"
+#include "soc.h"
 
-// tegra20 miniloader
-#include "miniloader/tegra20-miniloader.h"
-
-// tegra30 miniloader
-#include "miniloader/tegra30-miniloader.h"
-
-// tegra114 miniloader
-#include "miniloader/tegra114-miniloader.h"
-
-// tegra124 miniloader
-#include "miniloader/tegra124-miniloader.h"
-
-// tegra132 miniloader
-#include "miniloader/tegra132-miniloader.h"
-
-// tegra132 preboot mts
-#include "miniloader/tegra132-preboot-mts.h"
-
-// tegra132 mts
-#include "miniloader/tegra132-mts.h"
-
-static int initialize_rcm(uint16_t devid, usb_device_t *usb);
-static int initialize_miniloader(uint16_t devid, usb_device_t *usb, char *mlfile, uint32_t mlentry);
-static int initialize_preboot(usb_device_t *usb, char *pbfile, uint32_t pbentry, char *mtsdir);
+static int initialize_rcm(const struct soc *soc, usb_device_t *usb);
+static int initialize_miniloader(const struct soc *soc, usb_device_t *usb,
+				 const char *filename, uint32_t entry);
+static int initialize_preboot(const struct soc *soc, usb_device_t *usb,
+			      const char *filename, uint32_t entry);
 static int wait_status(nv3p_handle_t h3p);
 static int send_file(nv3p_handle_t h3p, const char *filename);
-static int send_buf(nv3p_handle_t h3p, uint8_t *buf, uint64_t total);
-static int download_binary(uint32_t cmd, usb_device_t *usb,
-			   uint8_t *miniloader, uint32_t size, uint32_t entry);
+static int download_binary(const struct soc *soc, uint32_t cmd,
+			   usb_device_t *usb, struct binary *binary);
 static void dump_platform_info(nv3p_platform_info_t *info);
 static int download_bct(nv3p_handle_t h3p, char *filename);
 static int download_bootloader(nv3p_handle_t h3p, char *filename,
 			       uint32_t entry, uint32_t loadaddr);
-static int download_mts(nv3p_handle_t h3p, char *filename,
-			uint32_t loadaddr, uint16_t devid, char *mtsdir);
+static int download_mts(nv3p_handle_t h3p, char *filename, uint32_t loadaddr);
 static int read_bct(nv3p_handle_t h3p, char *filename);
 
 enum cmdline_opts {
@@ -99,7 +81,6 @@ enum cmdline_opts {
 	OPT_PREBOOTENTRY,
 	OPT_MTS,
 	OPT_MTSENTRY,
-	OPT_MTSDIR,
 	OPT_END,
 };
 
@@ -141,10 +122,6 @@ static void usage(char *progname)
 	fprintf(stderr, "\t\tRead the cpu ucode from given file\n");
 	fprintf(stderr, "\t--mts-entry=<mtsentry>\n");
 	fprintf(stderr, "\t\tSpecify the entry point for the cpu ucode\n");
-	fprintf(stderr, "\t--mts-dir=full_mts_directory\n");
-	fprintf(stderr, "\t\tRead ucode files from given location with pre-defined\n");
-	fprintf(stderr, "\t\tfile name preboot_cr.bin and mts_cr.bin. mts-dir takes\n");
-	fprintf(stderr, "\t\tprecedence over mts and preboot options\n");
 	fprintf(stderr, "\n");
 }
 
@@ -163,6 +140,7 @@ int main(int argc, char **argv)
 	char *blfile = NULL;
 	uint32_t loadaddr = 0;
 	uint32_t entryaddr = 0;
+	const struct soc *soc;
 	uint16_t devid;
 	int do_read = 0;
 	char *mlfile = NULL;
@@ -171,7 +149,6 @@ int main(int argc, char **argv)
 	uint32_t pbentry = 0;
 	char *mtsfile = NULL;
 	uint32_t mtsentry = 0;
-	char *mtsdir = NULL;
 
 	static struct option long_options[] = {
 		[OPT_BCT]        = {"bct", 1, 0, 0},
@@ -187,7 +164,6 @@ int main(int argc, char **argv)
 		[OPT_PREBOOTENTRY] = {"preboot-entry", 1, 0, 0},
 		[OPT_MTS]        = {"mts", 1, 0, 0},
 		[OPT_MTSENTRY]   = {"mts-entry", 1, 0, 0},
-		[OPT_MTSDIR]     = {"mts-dir", 1, 0, 0},
 		[OPT_END]        = {0, 0, 0, 0}
 	};
 
@@ -235,9 +211,6 @@ int main(int argc, char **argv)
 				break;
 			case OPT_MTSENTRY:
 				mtsentry = strtoul(optarg, NULL, 0);
-				break;
-			case OPT_MTSDIR:
-				mtsdir = optarg;
 				break;
 			case OPT_HELP:
 			default:
@@ -295,6 +268,14 @@ int main(int argc, char **argv)
 		error(1, errno, "could not open USB device");
 	printf("device id: 0x%x\n", devid);
 
+	soc = soc_detect(devid);
+	if (!soc) {
+		fprintf(stderr, "unsupported SoC: %04x\n", devid);
+		return 1;
+	}
+
+	printf("NVIDIA %s detected\n", soc->name);
+
 	ret = usb_read(usb, (uint8_t *)uid, sizeof(uid), &actual_len);
 	if (!ret) {
 		if (actual_len == 8)
@@ -306,24 +287,25 @@ int main(int argc, char **argv)
 			error(1, errno, "USB read truncated");
 
 		// initialize rcm
-		ret2 = initialize_rcm(devid, usb);
+		ret2 = initialize_rcm(soc, usb);
 		if (ret2)
 			error(1, errno, "error initializing RCM protocol");
 
 		// download the mts_preboot ucode
-		if ((devid & 0xff) == USB_DEVID_NVIDIA_TEGRA132) {
-			ret2 = initialize_preboot(usb, pbfile, pbentry, mtsdir);
+		if (soc->needs_mts) {
+			ret2 = initialize_preboot(soc, usb, pbfile, pbentry);
 			if (ret2)
 				error(1, errno, "error initializing preboot mts");
 		}
 
 		// download the miniloader to start nv3p
-		ret2 = initialize_miniloader(devid, usb, mlfile, mlentry);
+		ret2 = initialize_miniloader(soc, usb, mlfile, mlentry);
 		if (ret2)
 			error(1, errno, "error initializing miniloader");
 
 		// device may have re-enumerated, so reopen USB
 		usb_close(usb);
+		sleep(1);
 		usb = usb_open(USB_VENID_NVIDIA, &devid);
 		if (!usb)
 			error(1, errno, "could not open USB device");
@@ -367,8 +349,8 @@ int main(int argc, char **argv)
 	}
 
 	// download mts
-	if ((devid & 0xff) == USB_DEVID_NVIDIA_TEGRA132) {
-		ret = download_mts(h3p, mtsfile, mtsentry, devid, mtsdir);
+	if (soc->needs_mts) {
+		ret = download_mts(h3p, mtsfile, mtsentry);
 		if (ret)
 			error(1, ret, "error downloading mts: %s", mtsfile);
 	}
@@ -384,40 +366,18 @@ int main(int argc, char **argv)
 	return 0;
 }
 
-static int initialize_rcm(uint16_t devid, usb_device_t *usb)
+static int initialize_rcm(const struct soc *soc, usb_device_t *usb)
 {
-	int ret;
-	uint8_t *msg_buff;
-	int msg_len;
+	int ret, msg_len, actual_len;
 	uint32_t status;
-	int actual_len;
-
-	// initialize RCM
-	if ((devid & 0xff) == USB_DEVID_NVIDIA_TEGRA20 ||
-	    (devid & 0xff) == USB_DEVID_NVIDIA_TEGRA30) {
-		dprintf("initializing RCM version 1\n");
-		ret = rcm_init(RCM_VERSION_1);
-	} else if ((devid & 0xff) == USB_DEVID_NVIDIA_TEGRA114) {
-		dprintf("initializing RCM version 35\n");
-		ret = rcm_init(RCM_VERSION_35);
-	} else if ((devid & 0xff) == USB_DEVID_NVIDIA_TEGRA124 ||
-		   (devid & 0xff) == USB_DEVID_NVIDIA_TEGRA132) {
-		dprintf("initializing RCM version 40\n");
-		ret = rcm_init(RCM_VERSION_40);
-	} else {
-		fprintf(stderr, "unknown tegra device: 0x%x\n", devid);
-		return errno;
-	}
-	if (ret) {
-		fprintf(stderr, "RCM initialize failed\n");
-		return ret;
-	}
+	void *msg_buff;
 
 	// create query version message
-	rcm_create_msg(RCM_CMD_QUERY_RCM_VERSION, NULL, 0, NULL, 0, &msg_buff);
+	rcm_create_msg(soc->rcm, RCM_CMD_QUERY_RCM_VERSION, NULL, 0, NULL, 0,
+		       &msg_buff);
 
 	// write query version message to device
-	msg_len = rcm_get_msg_len(msg_buff);
+	msg_len = rcm_get_msg_len(soc->rcm, msg_buff);
 	if (msg_len == 0) {
 		fprintf(stderr, "write RCM query version: unknown message length\n");
 		return EINVAL;
@@ -446,92 +406,66 @@ static int initialize_rcm(uint16_t devid, usb_device_t *usb)
 	return 0;
 }
 
-static int initialize_preboot(usb_device_t *usb, char *pbfile, uint32_t pbentry,
-			char *mtsdir)
+static int initialize_preboot(const struct soc *soc, usb_device_t *usb,
+			      const char *filename, uint32_t entry)
 {
-	int fd;
+	struct binary preboot;
 	struct stat sb;
-	int ret;
-	uint8_t *preboot, *_preboot = NULL;
-	uint32_t pb_size;
-	uint32_t pb_entry;
-	char *_mtsdir = NULL;
+	int fd, ret;
+	void *data;
 
-	if (!mtsdir && !pbfile) {
-		mtsdir = _mtsdir = (char *)malloc(strlen(TEGRA132_MTS_DIR) + 1);
-		sprintf(mtsdir, "%s", TEGRA132_MTS_DIR);
+	if (!filename)
+		return -EINVAL;
+
+	fd = open(filename, O_RDONLY, 0);
+	if (fd < 0) {
+		dprintf("error opening %s for reading\n", filename);
+		return -errno;
 	}
 
-	if (mtsdir) {
-		pbfile = (char *)malloc(strlen(mtsdir) + 2
-					 + strlen(TEGRA132_PREBOOT_MTS_FILE));
-		sprintf(pbfile, "%s/%s", mtsdir, TEGRA132_PREBOOT_MTS_FILE);
-		pbentry = TEGRA132_PREBOOT_MTS_ENTRY;
+	ret = fstat(fd, &sb);
+	if (ret) {
+		dprintf("error on fstat of %s\n", filename);
+		return -errno;
 	}
 
-	// use prebuilt preboot mts if not loading from a file
-	if (pbfile) {
-		fd = open(pbfile, O_RDONLY, 0);
-		if (fd < 0) {
-			fprintf(stderr, "error: %s\n", pbfile);
-			dprintf("error opening %s for reading\n", pbfile);
-			ret = errno;
-			goto done;
-		}
-		ret = fstat(fd, &sb);
-		if (ret) {
-			dprintf("error on fstat of %s\n", pbfile);
-			goto done;
-		}
-		pb_size = sb.st_size;
-		preboot = _preboot = (uint8_t *)malloc(pb_size);
-		if (!preboot) {
-			dprintf("error allocating %d bytes for preboot mts\n", pb_size);
-			ret = errno;
-			goto done;
-		}
-		if (read(fd, preboot, pb_size) != pb_size) {
-			dprintf("error reading from preboot mts file");
-			ret = errno;
-			goto done;
-		}
-		pb_entry = pbentry;
-	} else {
-		dprintf("error opening %s for reading\n", pbfile);
-		ret = errno;
-		goto done;
+	data = malloc(sb.st_size);
+	if (!data) {
+		dprintf("error allocating %zu bytes for preboot mts\n",
+			sb.st_size);
+		return -errno;
 	}
 
-	printf("downloading preboot mts to target at address 0x%x (%d bytes)...\n",
-	       pb_entry, pb_size);
-	ret = download_binary(RCM_CMD_DL_MTS, usb, preboot,
-			      pb_size, pb_entry);
+	if (read(fd, data, sb.st_size) != sb.st_size) {
+		dprintf("error reading from preboot mts file");
+		return -errno;
+	}
+
+	preboot.size = sb.st_size;
+	preboot.entry = entry;
+	preboot.data = data;
+
+	printf("downloading preboot mts to target at address 0x%x (%zu bytes)...\n",
+	       preboot.entry, preboot.size);
+
+	ret = download_binary(soc, RCM_CMD_DL_MTS, usb, &preboot);
 	if (ret) {
 		fprintf(stderr, "Error downloading preboot mts\n");
-		goto done;
+		return ret;
 	}
+
 	printf("preboot mts downloaded successfully\n");
-done:
-	if (_mtsdir)
-		free(_mtsdir);
 
-	if (mtsdir && pbfile)
-		free(pbfile);
-
-	if (_preboot)
-		free(_preboot);
-
-	return ret;
+	return 0;
 }
 
-static int initialize_miniloader(uint16_t devid, usb_device_t *usb, char *mlfile, uint32_t mlentry)
+static int initialize_miniloader(const struct soc *soc, usb_device_t *usb,
+				 const char *mlfile, uint32_t mlentry)
 {
-	int fd;
+	struct binary miniloader;
+	void *data = NULL;
 	struct stat sb;
-	int ret;
-	uint8_t *miniloader;
-	uint32_t miniloader_size;
-	uint32_t miniloader_entry;
+	int fd, ret;
 
 	// use prebuilt miniloader if not loading from a file
 	if (mlfile) {
@@ -545,47 +479,31 @@ static int initialize_miniloader(uint16_t devid, usb_device_t *usb, char *mlfile
 			dprintf("error on fstat of %s\n", mlfile);
 			return ret;
 		}
-		miniloader_size = sb.st_size;
-		miniloader = (uint8_t *)malloc(miniloader_size);
-		if (!miniloader) {
-			dprintf("error allocating %d bytes for miniloader\n", miniloader_size);
+		miniloader.size = sb.st_size;
+		data = malloc(miniloader.size);
+		if (!data) {
+			dprintf("error allocating %zu bytes for miniloader\n", miniloader.size);
 			return errno;
 		}
-		if (read(fd, miniloader, miniloader_size) != miniloader_size) {
+		if (read(fd, data, miniloader.size) != miniloader.size) {
 			dprintf("error reading from miniloader file");
 			return errno;
 		}
-		miniloader_entry = mlentry;
+		miniloader.entry = mlentry;
+		miniloader.data = data;
 	} else {
-		if ((devid & 0xff) == USB_DEVID_NVIDIA_TEGRA20) {
-			miniloader = miniloader_tegra20;
-			miniloader_size = sizeof(miniloader_tegra20);
-			miniloader_entry = TEGRA20_MINILOADER_ENTRY;
-		} else if ((devid & 0xff) == USB_DEVID_NVIDIA_TEGRA30) {
-			miniloader = miniloader_tegra30;
-			miniloader_size = sizeof(miniloader_tegra30);
-			miniloader_entry = TEGRA30_MINILOADER_ENTRY;
-		} else if ((devid & 0xff) == USB_DEVID_NVIDIA_TEGRA114) {
-			miniloader = miniloader_tegra114;
-			miniloader_size = sizeof(miniloader_tegra114);
-			miniloader_entry = TEGRA114_MINILOADER_ENTRY;
-		} else if ((devid & 0xff) == USB_DEVID_NVIDIA_TEGRA124) {
-			miniloader = miniloader_tegra124;
-			miniloader_size = sizeof(miniloader_tegra124);
-			miniloader_entry = TEGRA124_MINILOADER_ENTRY;
-		} else if ((devid & 0xff) == USB_DEVID_NVIDIA_TEGRA132) {
-			miniloader = miniloader_tegra132;
-			miniloader_size = sizeof(miniloader_tegra132);
-			miniloader_entry = TEGRA132_MINILOADER_ENTRY;
-		} else {
-			fprintf(stderr, "unknown tegra device: 0x%x\n", devid);
-			return ENODEV;
+		/* check for a built-in miniloader */
+		if (!soc->miniloader.data) {
+			fprintf(stderr, "no built-in miniloader for %s\n",
+				soc->name);
+			return -ENOENT;
 		}
+
+		memcpy(&miniloader, &soc->miniloader, sizeof(miniloader));
 	}
-	printf("downloading miniloader to target at address 0x%x (%d bytes)...\n",
-		miniloader_entry, miniloader_size);
-	ret = download_binary(RCM_CMD_DL_MINILOADER, usb, miniloader,
-			      miniloader_size, miniloader_entry);
+	printf("downloading miniloader to target at address 0x%x (%zu bytes)...\n",
+		miniloader.entry, miniloader.size);
+	ret = download_binary(soc, RCM_CMD_DL_MINILOADER, usb, &miniloader);
 	if (ret) {
 		fprintf(stderr, "Error downloading miniloader\n");
 		return ret;
@@ -631,48 +549,9 @@ fail:
 	return ret;
 }
 
-
 /*
-* send_buf: send data present in buffer to nv3p server
-*/
-static int send_buf(nv3p_handle_t h3p, uint8_t *buf, uint64_t total)
-{
-	int ret = 0;
-	uint32_t size;
-	uint64_t count;
-	char *spinner = "-\\|/";
-	int spin_idx = 0;
-
-#define NVFLASH_DOWNLOAD_CHUNK (1024 * 64)
-
-	printf("sending data:\n");
-
-	count = 0;
-	while(count != total) {
-		size = (uint32_t)MIN(total - count, NVFLASH_DOWNLOAD_CHUNK);
-
-		ret = nv3p_data_send(h3p, buf, size);
-		if (ret)
-			goto fail;
-
-		count += size;
-		buf += size;
-
-		printf("\r%c %" PRIu64 "/%" PRIu64" bytes sent", spinner[spin_idx],
-		       count, total);
-		spin_idx = (spin_idx + 1) % 4;
-	}
-	printf("\ndata sent successfully\n");
-
-#undef NVFLASH_DOWNLOAD_CHUNK
-
-fail:
-	return ret;
-}
-
-/*
-* send_file: send data present in file "filename" to nv3p server.
-*/
+ * send_file: send data present in file "filename" to nv3p server.
+ */
 static int send_file(nv3p_handle_t h3p, const char *filename)
 {
 	int ret;
@@ -746,18 +625,17 @@ fail:
 }
 
 
-static int download_binary(uint32_t cmd, usb_device_t *usb,
-			   uint8_t *binary, uint32_t size, uint32_t entry)
+static int download_binary(const struct soc *soc, uint32_t cmd,
+			   usb_device_t *usb, struct binary *binary)
 {
 	int ret, actual_len;
 	uint32_t status;
 	void *msg_buff;
 
 	// create download message
-	rcm_create_msg(cmd,
-		       (uint8_t *)&entry, sizeof(entry), binary, size,
-		       &msg_buff);
-	ret = usb_write(usb, msg_buff, rcm_get_msg_len(msg_buff));
+	rcm_create_msg(soc->rcm, cmd, &binary->entry, sizeof(binary->entry),
+		       binary->data, binary->size, &msg_buff);
+	ret = usb_write(usb, msg_buff, rcm_get_msg_len(soc->rcm, msg_buff));
 	if (ret) {
 		dprintf("error sending %x command to target\n", cmd);
 		goto fail;
@@ -995,85 +873,59 @@ static int download_bootloader(nv3p_handle_t h3p, char *filename,
 		return ret;
 	}
 
+	ret = wait_status(h3p);
+	if (ret) {
+		dprintf("error waiting for status on bootloader dl\n");
+		return ret;
+	}
+
 	return 0;
 }
 
-static int download_mts(nv3p_handle_t h3p, char *filename,
-			uint32_t loadaddr, uint16_t devid, char *mtsdir)
+static int download_mts(nv3p_handle_t h3p, char *filename, uint32_t loadaddr)
 {
 	nv3p_cmd_dl_mts_t arg;
 	struct stat sb;
-	char *_mtsdir = NULL;
 	int ret, fd;
 
-	if (!mtsdir && !filename) {
-		mtsdir = _mtsdir = (char *)malloc(strlen(TEGRA132_MTS_DIR) + 1);
-		sprintf(mtsdir, "%s", TEGRA132_MTS_DIR);
-	}
+	if (!filename)
+		return -EINVAL;
 
-	if (mtsdir) {
-		filename = (char *)malloc(strlen(mtsdir) + 2
-					 + strlen(TEGRA132_MTS_FILE));
-		sprintf(filename, "%s/%s", mtsdir, TEGRA132_MTS_FILE);
-		loadaddr = TEGRA132_MTS_ENTRY;
-	}
-
-	if (filename) {
-		fd = open(filename, O_RDONLY, 0);
-		if (fd < 0) {
-			fprintf(stderr, "error: %s\n", filename);
-			dprintf("error opening %s for reading\n", filename);
-			ret = errno;
-			goto done;
-		}
-
-		ret = fstat(fd, &sb);
-		if (ret) {
-			dprintf("error on fstat of %s\n", filename);
-			goto done;
-		}
-		close(fd);
-
-		arg.length = sb.st_size;
-		arg.address = loadaddr;
-	} else {
+	fd = open(filename, O_RDONLY, 0);
+	if (fd < 0) {
 		dprintf("error opening %s for reading\n", filename);
-		ret = errno;
-		goto done;
+		return errno;
 	}
+
+	ret = fstat(fd, &sb);
+	if (ret) {
+		dprintf("error on fstat of %s\n", filename);
+		return errno;
+	}
+
+	close(fd);
+
+	arg.length = sb.st_size;
+	arg.address = loadaddr;
 
 	ret = nv3p_cmd_send(h3p, NV3P_CMD_DL_MTS, (uint8_t *)&arg);
 	if (ret) {
 		dprintf("error sending 3p mts download command\n");
-		goto done;
+		return ret;
 	}
 
-	if (filename) {
-		// send the mts file
-		ret = send_file(h3p, filename);
-		if (ret) {
-			dprintf("error downloading mts\n");
-			goto done;
-		}
-	} else {
-		ret = send_buf(h3p, buf, arg.length);
-		if (ret) {
-			dprintf("error downloading mts\n");
-			goto done;
-		}
+	// send the mts file
+	ret = send_file(h3p, filename);
+	if (ret) {
+		dprintf("error downloading mts\n");
+		return ret;
 	}
 
 	ret = wait_status(h3p);
 	if (ret) {
 		dprintf("error waiting for status on mts dl\n");
+		return ret;
 	}
 
-done:
-	if (_mtsdir)
-		free(_mtsdir);
-
-	if (mtsdir && filename)
-		free(filename);
-
-	return ret;
+	return 0;
 }

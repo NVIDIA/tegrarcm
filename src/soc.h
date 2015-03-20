@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 2011, NVIDIA CORPORATION
- * All rights reserved.
+ * Copyright (c) 2015, NVIDIA CORPORATION. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,25 +25,25 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef USB_H
-#define USB_H
 
-#include <libusb.h>
+#ifndef _SOC_H
+#define _SOC_H
 
-#define USB_VENID_NVIDIA 0x955
+#include <stdbool.h>
+#include <stdint.h>
 
-typedef struct {
-	libusb_device_handle *handle;
-	uint8_t iface_num;
-	uint8_t endpt_in;
-	uint8_t endpt_out;
-	int initialized;
-} usb_device_t;
+#include "common.h"
+#include "rcm.h"
 
-usb_device_t *usb_open(uint16_t venid, uint16_t *devid);
-void usb_close(usb_device_t *usb);
-int usb_write(usb_device_t *usb, const void *buf, int len);
-int usb_read(usb_device_t *usb, void *buf, int len, int *actual_len);
+struct soc {
+	const char *name;
+	uint8_t chip_id;
+	bool needs_mts;
 
+	const struct rcm *rcm;
+	struct binary miniloader;
+};
 
-#endif // USB_H
+const struct soc *soc_detect(uint16_t dev_id);
+
+#endif

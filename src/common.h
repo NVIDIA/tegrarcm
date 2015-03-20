@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 2011, NVIDIA CORPORATION
- * All rights reserved.
+ * Copyright (c) 2015, NVIDIA CORPORATION. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,25 +25,19 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef USB_H
-#define USB_H
 
-#include <libusb.h>
+#ifndef _COMMON_H
+#define _COMMON_H
 
-#define USB_VENID_NVIDIA 0x955
+#include <stdint.h>
+#include <stdlib.h>
 
-typedef struct {
-	libusb_device_handle *handle;
-	uint8_t iface_num;
-	uint8_t endpt_in;
-	uint8_t endpt_out;
-	int initialized;
-} usb_device_t;
+#define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
 
-usb_device_t *usb_open(uint16_t venid, uint16_t *devid);
-void usb_close(usb_device_t *usb);
-int usb_write(usb_device_t *usb, const void *buf, int len);
-int usb_read(usb_device_t *usb, void *buf, int len, int *actual_len);
+struct binary {
+	const void *data;
+	size_t size;
+	uint32_t entry;
+};
 
-
-#endif // USB_H
+#endif

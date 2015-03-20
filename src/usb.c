@@ -33,6 +33,7 @@
 #include <sys/param.h>
 #include "usb.h"
 #include "debug.h"
+#include "soc.h"
 
 // USB xfer timeout in ms
 #define USB_TIMEOUT 1000
@@ -156,11 +157,7 @@ usb_device_t *usb_open(uint16_t venid, uint16_t *devid)
 	for (i = 0; i < cnt; i++) {
 		libusb_device *device = list[i];
 		if (usb_match(device, venid, devid)) {
-			if ((*devid & 0xff) == USB_DEVID_NVIDIA_TEGRA20 ||
-			    (*devid & 0xff) == USB_DEVID_NVIDIA_TEGRA30 ||
-			    (*devid & 0xff) == USB_DEVID_NVIDIA_TEGRA114 ||
-			    (*devid & 0xff) == USB_DEVID_NVIDIA_TEGRA124 ||
-			    (*devid & 0xff) == USB_DEVID_NVIDIA_TEGRA132) {
+			if (soc_detect(*devid)) {
 				found = device;
 				break;
 			} else {
