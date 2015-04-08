@@ -17,7 +17,7 @@ AC_CHECK_LIB([pthread],
 	[pthread_create],
 	[HAVE_PTHREAD=1],
 	[AC_MSG_ERROR([libpthread is not installed.])])
-PKG_CHECK_MODULES([LIBUSB], [libusb-1.0])
+PKG_CHECK_MODULES([LIBUSB], [libusb-1.0 >= 1.0.9])
 AC_LANG(C++)
 SAVED_LDFLAGS=$LDFLAGS
 LDFLAGS="$LDFLAGS -lcryptopp -lpthread"
