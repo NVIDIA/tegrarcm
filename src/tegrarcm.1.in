@@ -79,6 +79,80 @@ built-in one.
 .TP
 .B \-\-miniloader_entry \fImlentry\fP
 Specify the entry address of the miniloader.
+.TP
+.B \-\-usb\-port\-path \fIpath\fP
+Specify the physical USB port path of the Tegra device to control.
+
+.SH USB PORT PATH
+
+By default, tegrarcm operates on the first USB applicable device it finds.
+In a system that contains multiple Tegra devices, the user may wish to
+specify which device tegrarcm should operate upon. The \-\-usb\-port\-path
+option allows this, and in a manner that is most immune to the set of attached
+USB devices varying.
+
+Note that the USB port path is associated with a physical USB port on a
+particular hub. This value will vary if you physically re-organize your USB
+connections. This feature is still useful even if your USB topology changes,
+providing you have some other mechanism to differentiate attached devices. For
+example, you could use a wrapper script around tegrarcm that identifies the
+appropriate device by other means, then automatically calculates the USB port
+path using the procedures below, and passes the value to tegrarcm.
+
+To determine the USB port path of a device, you must plug it in and find the
+current USB bus and USB device number of the device, then map that to the USB
+port path. Simply run lsusb to find the current USB bus and device number. If
+you have multiple NVIDIA devices attached, you may need to unplug and replug
+the Tegra device to ensure you know which is which (all while not changing the
+state of any other USB devices so you don't confuse yourself).
+
+.nf
+$ lsusb
+...
+Bus 003 Device 039: ID 0955:7721 NVidia Corp.
+Bus 003 Device 045: ID 0955:7140 NVidia Corp.
+...
+fi
+
+Then, to determine the USB port path, do one of:
+
+.IP 1.
+
+Execute udevmadm on the USB device, and look for the DEVPATH entry. The
+final component in the path is the USB port path:
+
+.nf
+$ udevadm info /dev/bus/usb/003/045
+P: /devices/pci0000:00/0000:00:14.0/usb3/3-10/3-10.4
+N: bus/usb/003/045
+E: BUSNUM=003
+E: DEVNUM=045
+E: DEVPATH=/devices/pci0000:00/0000:00:14.0/usb3/3-10/3-10.4
+.fi
+
+.IP 2.
+
+Look at all the sub-directories of /sys/bus/usb/devices/* that do not
+contain either ":" or "usb". Each of these will contain a busnum and
+devnum file. Find the directory which matches the lsusb output, and use
+its name:
+
+.nf
+$ cat /sys/bus/usb/devices/3-10.4/busnum
+3
+$ cat /sys/bus/usb/devices/3-10.4/devnum
+45
+.fi
+
+Alternatively, you may already have udev rules that create a device node
+symlink for the device (after some specific identification algorithm). In
+that case, you can search the udev output for MAJOR/MINOR values, or
+/sys/bus/usb/devices/* directories for "dev" files, that match the device
+node the symlink points to.
+
+Once the port path is known, this value will not vary unless your USB
+connections are physically changed, so you can use it over and over
+without repeating the steps above.
 
 .SH EXAMPLES
 To download u-boot firmware to a Tegra20 seaboard:

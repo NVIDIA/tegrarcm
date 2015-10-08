@@ -81,6 +81,9 @@ enum cmdline_opts {
 	OPT_VERSION,
 	OPT_MINILOADER,
 	OPT_MINIENTRY,
+#ifdef HAVE_USB_PORT_MATCH
+	OPT_USBPORTPATH,
+#endif
 	OPT_END,
 };
 
@@ -102,6 +105,12 @@ static void usage(char *progname)
 	fprintf(stderr, "\tbootloader to device and start execution of bootloader\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "Options:\n");
+#ifdef HAVE_USB_PORT_MATCH
+	fprintf(stderr, "\t--usb-port-path=<path>\n");
+	fprintf(stderr, "\t\tSpecify the USB device to program, e.g. 3-10.4\n");
+	fprintf(stderr, "\t\tSee `udevadm info /dev/bus/usb/003/042` DEVPATH\n");
+	fprintf(stderr, "\t\tSee /sys/bus/usb/devices/* with matching busnum/devnum files\n");
+#endif
 	fprintf(stderr, "\t--entryaddr=<entryaddr>\n");
 	fprintf(stderr, "\t\tSpecify the entry point for the bootloader, if this option is\n");
 	fprintf(stderr, "\t\tnot provided, it is assumed to be loadaddr\n");
@@ -116,6 +125,36 @@ static void usage(char *progname)
 	fprintf(stderr, "\t\tSpecify the entry point for the miniloader\n");
 	fprintf(stderr, "\n");
 }
+
+#ifdef HAVE_USB_PORT_MATCH
+static void parse_usb_port_path(char *argv0, char *path, uint8_t *match_bus,
+	uint8_t *match_ports, int *match_ports_len)
+{
+	*match_bus = strtoul(path, &path, 10);
+	if (*path != '-') {
+		usage(argv0);
+		exit(EXIT_FAILURE);
+	}
+	path++;
+
+	*match_ports_len = 0;
+	for (;;) {
+		match_ports[*match_ports_len] = strtoul(path, &path, 10);
+		(*match_ports_len)++;
+		if (!*path)
+			break;
+		if (*match_ports_len >= PORT_MATCH_MAX_PORTS) {
+			usage(argv0);
+			exit(EXIT_FAILURE);
+		}
+		if (*path != '.') {
+			usage(argv0);
+			exit(EXIT_FAILURE);
+		}
+		path++;
+	}
+}
+#endif
 
 int main(int argc, char **argv)
 {
@@ -152,6 +191,9 @@ int main(int argc, char **argv)
 		[OPT_VERSION]    = {"version", 0, 0, 0},
 		[OPT_MINILOADER] = {"miniloader", 1, 0, 0},
 		[OPT_MINIENTRY]  = {"miniloader_entry", 1, 0, 0},
+#ifdef HAVE_USB_PORT_MATCH
+		[OPT_USBPORTPATH]  = {"usb-port-path", 1, 0, 0},
+#endif
 		[OPT_END]        = {0, 0, 0, 0}
 	};
 
@@ -187,6 +229,14 @@ int main(int argc, char **argv)
 			case OPT_MINIENTRY:
 				mlentry = strtoul(optarg, NULL, 0);
 				break;
+#ifdef HAVE_USB_PORT_MATCH
+			case OPT_USBPORTPATH:
+				parse_usb_port_path(argv[0], optarg,
+					&match_bus, match_ports,
+					&match_ports_len);
+				match_port = true;
+				break;
+#endif
 			case OPT_HELP:
 			default:
 				usage(argv[0]);
