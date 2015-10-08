@@ -45,16 +45,32 @@
 static int usb_match(libusb_device *dev, uint16_t venid, uint16_t *devid)
 {
 	struct libusb_device_descriptor desc;
+
 	if (libusb_get_device_descriptor(dev, &desc)) {
 		dprintf("libusb_get_device_descriptor\n");
 		return 0;
 	}
-	if (desc.idVendor == venid) {
-		*devid = desc.idProduct;
-		return 1;
+	if (desc.idVendor != venid) {
+		dprintf("non-NVIDIA USB device: 0x%x:0x%x\n",
+			desc.idVendor, desc.idProduct);
+		return 0;
+	}
+	switch (desc.idProduct & 0xff) {
+	case USB_DEVID_NVIDIA_TEGRA20:
+	case USB_DEVID_NVIDIA_TEGRA30:
+	case USB_DEVID_NVIDIA_TEGRA114:
+	case USB_DEVID_NVIDIA_TEGRA124:
+		break;
+	default:
+		dprintf("non-Tegra NVIDIA USB device: 0x%x:0x%x\n",
+			desc.idVendor, desc.idProduct);
+		return 0;
 	}
 
-	return 0;
+	dprintf("device matches\n");
+	*devid = desc.idProduct;
+
+	return 1;
 }
 
 static void usb_check_interface(const struct libusb_interface_descriptor *iface_desc,
@@ -155,17 +171,10 @@ usb_device_t *usb_open(uint16_t venid, uint16_t *devid)
 
 	for (i = 0; i < cnt; i++) {
 		libusb_device *device = list[i];
+
 		if (usb_match(device, venid, devid)) {
-			if ((*devid & 0xff) == USB_DEVID_NVIDIA_TEGRA20 ||
-			    (*devid & 0xff) == USB_DEVID_NVIDIA_TEGRA30 ||
-			    (*devid & 0xff) == USB_DEVID_NVIDIA_TEGRA114 ||
-			    (*devid & 0xff) == USB_DEVID_NVIDIA_TEGRA124) {
-				found = device;
-				break;
-			} else {
-				dprintf("non-tegra NVIDIA USB device: 0x%x\n",
-					*devid);
-			}
+			found = device;
+			break;
 		}
 	}
 
