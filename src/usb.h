@@ -29,7 +29,13 @@
 #ifndef USB_H
 #define USB_H
 
+#include <stdbool.h>
 #include <libusb.h>
+
+#if defined(LIBUSBX_API_VERSION) && (LIBUSBX_API_VERSION >= 0x01000102)
+#define HAVE_USB_PORT_MATCH
+#define PORT_MATCH_MAX_PORTS 7
+#endif
 
 #define USB_VENID_NVIDIA 0x955
 #define USB_DEVID_NVIDIA_TEGRA20 0x20
@@ -45,7 +51,13 @@ typedef struct {
 	int initialized;
 } usb_device_t;
 
-usb_device_t *usb_open(uint16_t venid, uint16_t *devid);
+usb_device_t *usb_open(uint16_t venid, uint16_t *devid
+#ifdef HAVE_USB_PORT_MATCH
+	,
+	bool *match_port, uint8_t *match_bus, uint8_t *match_ports,
+	int *match_ports_len
+#endif
+);
 void usb_close(usb_device_t *usb);
 int usb_write(usb_device_t *usb, uint8_t *buf, int len);
 int usb_read(usb_device_t *usb, uint8_t *buf, int len, int *actual_len);

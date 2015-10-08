@@ -42,9 +42,27 @@
 //
 // returns 1 if the specified usb device matches the vendor id
 //
-static int usb_match(libusb_device *dev, uint16_t venid, uint16_t *devid)
+static int usb_match(libusb_device *dev, uint16_t venid, uint16_t *devid
+#ifdef HAVE_USB_PORT_MATCH
+	,
+	bool *match_port, uint8_t *match_bus, uint8_t *match_ports,
+	int *match_ports_len
+#endif
+)
 {
 	struct libusb_device_descriptor desc;
+#ifdef HAVE_USB_PORT_MATCH
+	uint8_t dev_bus;
+	uint8_t dev_ports[PORT_MATCH_MAX_PORTS];
+	int dev_ports_len;
+#ifdef DEBUG
+	int i;
+	char portstr[(PORT_MATCH_MAX_PORTS * 4)];
+	char *portstrp;
+	size_t portstr_lenleft;
+	int printed;
+#endif
+#endif
 
 	if (libusb_get_device_descriptor(dev, &desc)) {
 		dprintf("libusb_get_device_descriptor\n");
@@ -66,6 +84,47 @@ static int usb_match(libusb_device *dev, uint16_t venid, uint16_t *devid)
 			desc.idVendor, desc.idProduct);
 		return 0;
 	}
+#ifdef HAVE_USB_PORT_MATCH
+	dev_bus = libusb_get_bus_number(dev);
+	dev_ports_len = libusb_get_port_numbers(dev, dev_ports,
+			PORT_MATCH_MAX_PORTS);
+	if (dev_ports_len < 0) {
+		dprintf("libusb_get_port_numbers failed: %d\n", dev_ports_len);
+		return 0;
+	}
+	if (*match_port) {
+		if (dev_bus != *match_bus) {
+			dprintf("bus mismatch dev:%d match:%d\n", dev_bus,
+				*match_bus);
+			return 0;
+		}
+		if (memcmp(dev_ports, match_ports, dev_ports_len)) {
+			dprintf("ports mismatch\n");
+			return 0;
+		}
+	}
+	if (!*match_port) {
+		*match_port = true;
+		*match_bus = dev_bus;
+		memcpy(match_ports, dev_ports, dev_ports_len);
+		*match_ports_len = dev_ports_len;
+#ifdef DEBUG
+		portstrp = portstr;
+		portstr_lenleft = sizeof(portstr);
+		printed = snprintf(portstrp, portstr_lenleft, "%d-%d",
+			dev_bus, dev_ports[0]);
+		portstrp += printed;
+		portstr_lenleft -= printed;
+		for (i = 1; i < dev_ports_len; i++) {
+			printed = snprintf(portstrp, portstr_lenleft, ".%d",
+				(int)dev_ports[i]);
+			portstrp += printed;
+			portstr_lenleft -= printed;
+		}
+		dprintf("Enabling future match %s\n", portstr);
+#endif
+	}
+#endif
 
 	dprintf("device matches\n");
 	*devid = desc.idProduct;
@@ -151,7 +210,13 @@ static int usb_get_interface(libusb_device_handle *handle,
 	return 0;
 }
 
-usb_device_t *usb_open(uint16_t venid, uint16_t *devid)
+usb_device_t *usb_open(uint16_t venid, uint16_t *devid
+#ifdef HAVE_USB_PORT_MATCH
+	,
+	bool *match_port, uint8_t *match_bus, uint8_t *match_ports,
+	int *match_ports_len
+#endif
+)
 {
 	libusb_device **list = NULL;
 	libusb_device *found = NULL;
@@ -172,7 +237,12 @@ usb_device_t *usb_open(uint16_t venid, uint16_t *devid)
 	for (i = 0; i < cnt; i++) {
 		libusb_device *device = list[i];
 
-		if (usb_match(device, venid, devid)) {
+		if (usb_match(device, venid, devid
+#ifdef HAVE_USB_PORT_MATCH
+				, match_port, match_bus, match_ports,
+				match_ports_len
+#endif
+		)) {
 			found = device;
 			break;
 		}

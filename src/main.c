@@ -136,6 +136,12 @@ int main(int argc, char **argv)
 	int do_read = 0;
 	char *mlfile = NULL;
 	uint32_t mlentry = 0;
+#ifdef HAVE_USB_PORT_MATCH
+	bool match_port = false;
+	uint8_t match_bus;
+	uint8_t match_ports[PORT_MATCH_MAX_PORTS];
+	int match_ports_len;
+#endif
 
 	static struct option long_options[] = {
 		[OPT_BCT]        = {"bct", 1, 0, 0},
@@ -232,7 +238,11 @@ int main(int argc, char **argv)
 		printf("entry addr 0x%x\n", entryaddr);
 	}
 
-	usb = usb_open(USB_VENID_NVIDIA, &devid);
+	usb = usb_open(USB_VENID_NVIDIA, &devid
+#ifdef HAVE_USB_PORT_MATCH
+		, &match_port, &match_bus, match_ports, &match_ports_len
+#endif
+	);
 	if (!usb)
 		error(1, errno, "could not open USB device");
 	printf("device id: 0x%x\n", devid);
@@ -259,7 +269,11 @@ int main(int argc, char **argv)
 
 		// device may have re-enumerated, so reopen USB
 		usb_close(usb);
-		usb = usb_open(USB_VENID_NVIDIA, &devid);
+		usb = usb_open(USB_VENID_NVIDIA, &devid
+#ifdef HAVE_USB_PORT_MATCH
+		, &match_port, &match_bus, match_ports, &match_ports_len
+#endif
+		);
 		if (!usb)
 			error(1, errno, "could not open USB device");
 	}
