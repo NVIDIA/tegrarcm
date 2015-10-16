@@ -83,6 +83,10 @@ Changelog
 
 Ssee git logs for complete list.
 
+V1.7 - Documented patch submission process in this file
+     - Added better USB debugging message
+     - Require a specific minimum version of libusb
+     - Added --usb-port-path cmdline option
 V1.6 - Added support for ODM secure mode
 V1.5 - Added support for RCM protocol version 40
      - Added Tegra124 support
