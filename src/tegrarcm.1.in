@@ -9,13 +9,12 @@ tegrarcm \- tegra firmware download utility
 ]
 .SH DESCRIPTION
 This program is used to send code to a Tegra device in recovery mode.
-It does not supported locked devices with an encrypted boot key, only
-open devices such as the ventana or cardhu reference boards.  It is
-not capable of flashing firmware to a device, but can be used to
-download firmware that is then capable of flashing.  For example in
-ChromeOS tegrarcm is used to download a special build of u-boot to the
-target Tegra device with a payload that it then flashes to the boot
-device.
+It also supports locked devices with pkc private key, such as Jetson
+tk1 board. It is not capable of flashing firmware to a device, but can
+be used to download firmware that is then capable of flashing.  For
+example in ChromeOS tegrarcm is used to download a special build of
+u-boot to the target Tegra device with a payload that it then flashes
+to the boot device.
 
 .SS Platforms supported
 .IP \(bu
@@ -82,6 +81,24 @@ Specify the entry address of the miniloader.
 .TP
 .B \-\-usb\-port\-path \fIpath\fP
 Specify the physical USB port path of the Tegra device to control.
+.TP
+.B \-\-pkc \fIkey.der\fP
+Specify the key file for secured devices. The private key should be in DER format.
+.TP
+.B \-\-gen\-signed\-msgs
+Generate signed messages for pkc secured devices.
+.TP
+.B \-\-signed\-msgs\-file \fImsg_file_prefix\fP
+Specify messages file name prefix.
+.TP
+.B \-\-download\-signed\-msgs
+Download signed messages.
+.TP
+.B \-\-soc \fItegra_soc_#\fP
+Specify Tegra SoC chip model number, ie, 124.
+.TP
+.B \-\-usb\-timeout \fItimeout_ms\fP
+Specify usb transfer timeout value in ms, 0 for unlimited timeout.
 
 .SH USB PORT PATH
 
@@ -155,7 +172,7 @@ connections are physically changed, so you can use it over and over
 without repeating the steps above.
 
 .SH EXAMPLES
-To download u-boot firmware to a Tegra20 seaboard:
+1) To download unsigned u-boot firmware to a Tegra20 seaboard:
 
 .nf
 $ sudo tegrarcm --bct seaboard.bct --bootloader u-boot.bin --loadaddr 0x108000
@@ -187,7 +204,7 @@ sending file: u-boot.bin
 u-boot.bin sent successfully
 .fi
 
-To read the BCT from a system:
+2) To read the BCT from a system:
 
 .nf
 $ sudo tegrarcm --bct ventana.bct readbct
@@ -195,6 +212,89 @@ bct file: ventana.bct
 device id: 0x7820
 reading BCT from system, writing to ventana.bct...done!
 .fi
+
+3) To download with auto-signing u-boot.bin to jetson-tk1 target:
+
+.nf
+$ sudo tegrarcm --bct=jetson-tk1.bct --bootloader=u-boot.bin --loadaddr=0x83d88000 --pkc=rsa_priv.der
+bct file: jetson-tk1-bct.bct
+booloader file: u-boot.bin
+load addr 0x83d88000
+entry addr 0x83d88000
+device id: 0x7140
+uid:  0x640010017410b1000000000016020540
+RCM version: 64.1
+downloading miniloader to target at address 0x4000e000 (136920 bytes)...
+miniloader downloaded successfully
+Chip UID:                0x000000017410b1000000000016020540
+Chip ID:                 0x40
+Chip ID Major Version:   0x1
+Chip ID Minor Version:   0x1
+Chip SKU:                0x81 (t124)
+Boot ROM Version:        0x1
+Boot Device:             0x2 (EMMC)
+Operating Mode:          0x6 (odm secure mode with PKC)
+Device Config Strap:     0x0
+Device Config Fuse:      0x0
+SDRAM Config Strap:      0x3
+sending file: jetson-tk1-bct.bct
+- 8192/8192 bytes sent
+jetson-tk1-bct.bct sent successfully
+sending file: u-boot.bin
+| 440004/440004 bytes sent
+u-boot.bin sent successfully
+.fi
+
+4) To generate signed messages for jetson-tk1 target:
+
+.nf
+$ sudo tegrarcm --gen-signed-msgs --signed-msgs-file rel_1001.bin --bootloader=u-boot.bin --loadaddr 0x83d88000 --soc 124 --pkc rsa_priv.der
+booloader file: u-boot.bin
+load addr 0x83d88000
+entry addr 0x83d88000
+Create file rel_1001.bin.qry...
+Create file rel_1001.bin.ml...
+Create file rel_1001.bin.bl...
+.fi
+
+
+5) To download signed messages to jetson-tk1 target:
+
+.nf
+$ sudo tegrarcm --download-signed-msgs --signed-msgs-file rel_1001.bin --bct=jetson-tk1-bct.bct --bootloader=u-boot.bin --loadaddr 0x83d88000
+bct file: jetson-tk1-bct.bct
+booloader file: u-boot.bin
+load addr 0x83d88000
+entry addr 0x83d88000
+device id: 0x7140
+uid:  0x640010017410b1000000000016020540
+download signed query version rcm from file rel_1001.bin.qry
+RCM version: 64.1
+download signed miniloader rcm from file rel_1001.bin.ml
+downloading miniloader to target at address 0x4000e000 (137572 bytes)...
+miniloader downloaded successfully
+Chip UID:                0x000000017410b1000000000016020540
+Chip ID:                 0x40
+Chip ID Major Version:   0x1
+Chip ID Minor Version:   0x1
+Chip SKU:                0x81 (t124)
+Boot ROM Version:        0x1
+Boot Device:             0x2 (EMMC)
+Operating Mode:          0x6 (odm secure mode with PKC)
+Device Config Strap:     0x0
+Device Config Fuse:      0x0
+SDRAM Config Strap:      0x3
+sending file: jetson-tk1-bct.bct
+- 8192/8192 bytes sent
+jetson-tk1-bct.bct sent successfully
+sending file: rel_1001.bin.bl
+- 256/256 bytes sent
+rel_1001.bin.bl sent successfully
+sending file: u-boot.bin
+| 440004/440004 bytes sent
+u-boot.bin sent successfully
+.fi
+
 
 .SH RETURN VALUE
 If any error occurs a non zero exit status is returned.
