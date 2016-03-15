@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, NVIDIA CORPORATION
+ * Copyright (c) 2011-2016, NVIDIA CORPORATION
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,6 +39,7 @@
 
 #define USB_XFER_MAX 4096
 
+uint32_t usb_timeout = USB_TIMEOUT;
 //
 // returns 1 if the specified usb device matches the vendor id
 //
@@ -307,7 +308,7 @@ int usb_write(usb_device_t *usb, uint8_t *buf, int len)
 	while (len) {
 		chunk_size = MIN(len, USB_XFER_MAX);
 		ret = libusb_bulk_transfer(usb->handle, usb->endpt_out, buf,
-					   chunk_size, &actual_chunk, USB_TIMEOUT);
+					   chunk_size, &actual_chunk, usb_timeout);
 		if (ret != LIBUSB_SUCCESS) {
 			dprintf("libusb write failure: %d: %s\n", ret, libusb_error_name(ret));
 			return EIO;
@@ -334,7 +335,7 @@ int usb_read(usb_device_t *usb, uint8_t *buf, int len, int *actual_len)
 	while (len) {
 		chunk_size = MIN(len, USB_XFER_MAX);
 		ret = libusb_bulk_transfer(usb->handle, usb->endpt_in, buf,
-					   chunk_size, &actual_chunk, USB_TIMEOUT);
+					   chunk_size, &actual_chunk, usb_timeout);
 		if (ret != LIBUSB_SUCCESS) {
 			dprintf("libusb read failure: %d: %s\n", ret, libusb_error_name(ret));
 			return EIO;

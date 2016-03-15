@@ -87,6 +87,7 @@ static void set_platform_info(nv3p_platform_info_t *info);
 static uint32_t get_op_mode(void);
 
 static nv3p_platform_info_t *g_platform_info = NULL;
+extern uint32_t usb_timeout;
 
 enum cmdline_opts {
 	OPT_BCT,
@@ -105,6 +106,7 @@ enum cmdline_opts {
 	OPT_SIGNED_MSGS_FILE,
 	OPT_SOC,
 	OPT_DOWNLOAD_SIGNED_MSGS,
+	OPT_USB_TIMEOUT,
 	OPT_END,
 };
 
@@ -155,6 +157,8 @@ static void usage(char *progname)
 	fprintf(stderr, "\t\tSpecify Tegra SoC chip model number, ie, 124.\n");
 	fprintf(stderr, "\t--download-signed-msgs\n");
 	fprintf(stderr, "\t\tDownload signed messages\n");
+	fprintf(stderr, "\t--usb-timeout=<timeout_ms>\n");
+	fprintf(stderr, "\t\tSpecify usb transfer timeout value in ms, 0 for unlimited timeout\n");
 	fprintf(stderr, "\n");
 }
 
@@ -259,6 +263,7 @@ int main(int argc, char **argv)
 		[OPT_SIGNED_MSGS_FILE] = {"signed-msgs-file", 1, 0, 0},
 		[OPT_SOC]        = {"soc", 1, 0, 0},
 		[OPT_DOWNLOAD_SIGNED_MSGS] = {"download-signed-msgs", 0, 0, 0},
+		[OPT_USB_TIMEOUT] = {"usb-timeout", 1, 0, 0},
 		[OPT_END]        = {0, 0, 0, 0}
 	};
 	// parse command line args
@@ -315,6 +320,9 @@ int main(int argc, char **argv)
 				break;
 			case OPT_DOWNLOAD_SIGNED_MSGS:
 				download_signed_msgs = true;
+				break;
+			case OPT_USB_TIMEOUT:
+				usb_timeout = strtoul(optarg, NULL, 0);
 				break;
 			case OPT_HELP:
 			default:
