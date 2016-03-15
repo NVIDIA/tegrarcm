@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, NVIDIA CORPORATION
+ * Copyright (c) 2011-2016, NVIDIA CORPORATION
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,6 +44,7 @@
 #include "nv3p.h"
 #include "nv3p_status.h"
 #include "aes-cmac.h"
+#include "rsa-pss.h"
 #include "rcm.h"
 #include "debug.h"
 #include "config.h"
@@ -60,7 +61,7 @@
 // tegra124 miniloader
 #include "miniloader/tegra124-miniloader.h"
 
-static int initialize_rcm(uint16_t devid, usb_device_t *usb);
+static int initialize_rcm(uint16_t devid, usb_device_t *usb, const char *pkc_keyfile);
 static int initialize_miniloader(uint16_t devid, usb_device_t *usb, char *mlfile, uint32_t mlentry);
 static int wait_status(nv3p_handle_t h3p);
 static int send_file(nv3p_handle_t h3p, const char *filename);
@@ -69,8 +70,14 @@ static int download_miniloader(usb_device_t *usb, uint8_t *miniloader,
 static void dump_platform_info(nv3p_platform_info_t *info);
 static int download_bct(nv3p_handle_t h3p, char *filename);
 static int download_bootloader(nv3p_handle_t h3p, char *filename,
-			       uint32_t entry, uint32_t loadaddr);
+			       uint32_t entry, uint32_t loadaddr,
+			       const char *pkc_keyfile);
 static int read_bct(nv3p_handle_t h3p, char *filename);
+
+static void set_platform_info(nv3p_platform_info_t *info);
+static uint32_t get_op_mode(void);
+
+static nv3p_platform_info_t *g_platform_info = NULL;
 
 enum cmdline_opts {
 	OPT_BCT,
@@ -81,6 +88,7 @@ enum cmdline_opts {
 	OPT_VERSION,
 	OPT_MINILOADER,
 	OPT_MINIENTRY,
+	OPT_PKC,
 #ifdef HAVE_USB_PORT_MATCH
 	OPT_USBPORTPATH,
 #endif
@@ -123,6 +131,10 @@ static void usage(char *progname)
 	fprintf(stderr, "\t\tminiloader\n");
 	fprintf(stderr, "\t--miniloader_entry=<mlentry>\n");
 	fprintf(stderr, "\t\tSpecify the entry point for the miniloader\n");
+	fprintf(stderr, "\t--pkc=<key.ber>\n");
+	fprintf(stderr, "\t\tSpecify the key file for secured devices. The private key should be\n");
+	fprintf(stderr, "\t\tin DER format\n");
+
 	fprintf(stderr, "\n");
 }
 
@@ -175,6 +187,7 @@ int main(int argc, char **argv)
 	int do_read = 0;
 	char *mlfile = NULL;
 	uint32_t mlentry = 0;
+	char *pkc_keyfile = NULL;
 #ifdef HAVE_USB_PORT_MATCH
 	bool match_port = false;
 	uint8_t match_bus;
@@ -191,6 +204,7 @@ int main(int argc, char **argv)
 		[OPT_VERSION]    = {"version", 0, 0, 0},
 		[OPT_MINILOADER] = {"miniloader", 1, 0, 0},
 		[OPT_MINIENTRY]  = {"miniloader_entry", 1, 0, 0},
+		[OPT_PKC]        = {"pkc", 1, 0, 0},
 #ifdef HAVE_USB_PORT_MATCH
 		[OPT_USBPORTPATH]  = {"usb-port-path", 1, 0, 0},
 #endif
@@ -228,6 +242,9 @@ int main(int argc, char **argv)
 				break;
 			case OPT_MINIENTRY:
 				mlentry = strtoul(optarg, NULL, 0);
+				break;
+			case OPT_PKC:
+				pkc_keyfile = optarg;
 				break;
 #ifdef HAVE_USB_PORT_MATCH
 			case OPT_USBPORTPATH:
@@ -308,7 +325,7 @@ int main(int argc, char **argv)
 			error(1, errno, "USB read truncated");
 
 		// initialize rcm
-		ret2 = initialize_rcm(devid, usb);
+		ret2 = initialize_rcm(devid, usb, pkc_keyfile);
 		if (ret2)
 			error(1, errno, "error initializing RCM protocol");
 
@@ -351,10 +368,12 @@ int main(int argc, char **argv)
 	if (ret)
 		error(1, errno, "wait status after platform info");
 	dump_platform_info(&info);
+	set_platform_info(&info);
 
 	if (info.op_mode != RCM_OP_MODE_DEVEL &&
 	    info.op_mode != RCM_OP_MODE_ODM_OPEN &&
 	    info.op_mode != RCM_OP_MODE_ODM_SECURE &&
+	    info.op_mode != RCM_OP_MODE_ODM_SECURE_PKC &&
 	    info.op_mode != RCM_OP_MODE_PRE_PRODUCTION)
 		error(1, ENODEV, "device is not in developer, open, secure, "
 		      "or pre-production mode, cannot flash");
@@ -366,7 +385,7 @@ int main(int argc, char **argv)
 	}
 
 	// download the bootloader
-	ret = download_bootloader(h3p, blfile, entryaddr, loadaddr);
+	ret = download_bootloader(h3p, blfile, entryaddr, loadaddr, pkc_keyfile);
 	if (ret)
 		error(1, ret, "error downloading bootloader: %s", blfile);
 
@@ -376,7 +395,8 @@ int main(int argc, char **argv)
 	return 0;
 }
 
-static int initialize_rcm(uint16_t devid, usb_device_t *usb)
+static int initialize_rcm(uint16_t devid, usb_device_t *usb,
+			const char *pkc_keyfile)
 {
 	int ret;
 	uint8_t *msg_buff;
@@ -388,13 +408,13 @@ static int initialize_rcm(uint16_t devid, usb_device_t *usb)
 	if ((devid & 0xff) == USB_DEVID_NVIDIA_TEGRA20 ||
 	    (devid & 0xff) == USB_DEVID_NVIDIA_TEGRA30) {
 		dprintf("initializing RCM version 1\n");
-		ret = rcm_init(RCM_VERSION_1);
+		ret = rcm_init(RCM_VERSION_1, pkc_keyfile);
 	} else if ((devid & 0xff) == USB_DEVID_NVIDIA_TEGRA114) {
 		dprintf("initializing RCM version 35\n");
-		ret = rcm_init(RCM_VERSION_35);
+		ret = rcm_init(RCM_VERSION_35, pkc_keyfile);
 	} else if ((devid & 0xff) == USB_DEVID_NVIDIA_TEGRA124) {
 		dprintf("initializing RCM version 40\n");
-		ret = rcm_init(RCM_VERSION_40);
+		ret = rcm_init(RCM_VERSION_40, pkc_keyfile);
 	} else {
 		fprintf(stderr, "unknown tegra device: 0x%x\n", devid);
 		return errno;
@@ -720,6 +740,7 @@ static void dump_platform_info(nv3p_platform_info_t *info)
 	case RCM_OP_MODE_DEVEL:             op_mode = "developer mode"; break;
 	case RCM_OP_MODE_ODM_OPEN:          op_mode = "odm open mode"; break;
 	case RCM_OP_MODE_ODM_SECURE:        op_mode = "odm secure mode"; break;
+	case RCM_OP_MODE_ODM_SECURE_PKC:    op_mode = "odm secure mode with PKC"; break;
 	default:                            op_mode = "unknown"; break;
 	}
 	printf(" (%s)\n", op_mode);
@@ -813,7 +834,8 @@ out:
 }
 
 static int download_bootloader(nv3p_handle_t h3p, char *filename,
-			       uint32_t entry, uint32_t loadaddr)
+			       uint32_t entry, uint32_t loadaddr,
+			       const char *pkc_keyfile)
 {
 	int ret;
 	nv3p_cmd_dl_bl_t arg;
@@ -849,6 +871,31 @@ static int download_bootloader(nv3p_handle_t h3p, char *filename,
 		return ret;
 	}
 
+	// For fused board, the bootloader hash must be sent first
+	if (get_op_mode() == RCM_OP_MODE_ODM_SECURE_PKC) {
+		/* sign and download */
+		if (pkc_keyfile)  {
+			uint8_t rsa_pss_sig[RCM_RSA_SIG_SIZE];
+
+			ret = rsa_pss_sign_file(pkc_keyfile, filename, rsa_pss_sig);
+			if (ret) {
+				dprintf("error signing %s with %s\n",
+					filename, pkc_keyfile);
+				return ret;
+			}
+
+			ret = nv3p_data_send(h3p, rsa_pss_sig, sizeof(rsa_pss_sig));
+			if (ret) {
+				dprintf("error sending bootloader signature\n");
+				return ret;
+			}
+		} else {
+			fprintf(stderr, "Error: missing pkc keyfile to sign"
+				" bootloader\n");
+			return -1;
+		}
+	}
+
 	// send the bootloader file
 	ret = send_file(h3p, filename);
 	if (ret) {
@@ -856,5 +903,19 @@ static int download_bootloader(nv3p_handle_t h3p, char *filename,
 		return ret;
 	}
 
+	return 0;
+}
+
+static void set_platform_info(nv3p_platform_info_t *info)
+{
+	g_platform_info = info;
+}
+
+static uint32_t get_op_mode(void)
+{
+	if (g_platform_info)
+		return g_platform_info->op_mode;
+
+	fprintf(stderr, "Error: No platform info has been retrieved\n");
 	return 0;
 }

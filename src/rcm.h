@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, NVIDIA CORPORATION
+ * Copyright (c) 2011-2016, NVIDIA CORPORATION
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -50,6 +50,8 @@
 
 // AES block size in bytes
 #define RCM_AES_BLOCK_SIZE      (128 / 8)
+#define RCM_RSA_MODULUS_SIZE	(2048 / 8)
+#define RCM_RSA_SIG_SIZE	RCM_RSA_MODULUS_SIZE
 
 /*
  * Defines the header for RCM messages from the host.
@@ -72,10 +74,10 @@ typedef struct {
 
 typedef struct {
 	uint32_t len_insecure;		// 000-003
-	uint8_t modulus[2048 / 8];	// 004-103
+	uint8_t modulus[RCM_RSA_MODULUS_SIZE];	// 004-103
 	union {
 		uint8_t cmac_hash[RCM_AES_BLOCK_SIZE];
-		uint8_t rsa_pss_sig[2048 / 8];
+		uint8_t rsa_pss_sig[RCM_RSA_SIG_SIZE];
 	} object_sig;			// 104-203
 	uint8_t reserved[16];		// 204-213
 	uint32_t ecid[4];		// 214-223
@@ -89,10 +91,10 @@ typedef struct {
 
 typedef struct {
 	uint32_t len_insecure;		// 000-003
-	uint8_t modulus[2048 / 8];	// 004-103
+	uint8_t modulus[RCM_RSA_MODULUS_SIZE];	// 004-103
 	struct {
 		uint8_t cmac_hash[RCM_AES_BLOCK_SIZE];
-		uint8_t rsa_pss_sig[2048 / 8];
+		uint8_t rsa_pss_sig[RCM_RSA_SIG_SIZE];
 	} object_sig;			// 104-213
 	uint8_t reserved[16];		// 214-223
 	uint32_t ecid[4];		// 224-233
@@ -109,8 +111,9 @@ typedef struct {
 #define RCM_OP_MODE_DEVEL           0x3
 #define RCM_OP_MODE_ODM_SECURE      0x4
 #define RCM_OP_MODE_ODM_OPEN        0x5
+#define RCM_OP_MODE_ODM_SECURE_PKC  0x6
 
-int rcm_init(uint32_t version);
+int rcm_init(uint32_t version, const char *keyfile);
 uint32_t rcm_get_msg_len(uint8_t *msg);
 int rcm_create_msg(
 	uint32_t opcode,

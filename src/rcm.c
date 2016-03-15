@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, NVIDIA CORPORATION
+ * Copyright (c) 2011-2016, NVIDIA CORPORATION
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 #include <errno.h>
 #include "rcm.h"
 #include "aes-cmac.h"
+#include "rsa-pss.h"
 
 static int rcm_sign_msg(uint8_t *buf);
 static int rcm1_sign_msg(uint8_t *buf);
@@ -72,8 +73,9 @@ static uint32_t rcm_get_msg_buf_len(uint32_t payload_len);
 
 static uint32_t rcm_version = 0;
 static uint32_t message_size = 0;
+static const char *rcm_keyfile = NULL;
 
-int rcm_init(uint32_t version)
+int rcm_init(uint32_t version, const char *keyfile)
 {
 	int ret = -EINVAL;
 
@@ -92,6 +94,9 @@ int rcm_init(uint32_t version)
 		message_size = sizeof(rcm40_msg_t);
 		ret = 0;
 	}
+
+	rcm_keyfile = keyfile;
+
 	return ret;
 }
 
@@ -198,6 +203,11 @@ static int rcm35_sign_msg(uint8_t *buf)
 	}
 
 	cmac_hash(msg->reserved, crypto_len, msg->object_sig.cmac_hash);
+
+	if (rcm_keyfile)
+		rsa_pss_sign(rcm_keyfile, msg->reserved, crypto_len,
+			msg->object_sig.rsa_pss_sig, msg->modulus);
+
 	return 0;
 }
 
@@ -218,6 +228,10 @@ static int rcm40_sign_msg(uint8_t *buf)
 	}
 
 	cmac_hash(msg->reserved, crypto_len, msg->object_sig.cmac_hash);
+	if (rcm_keyfile)
+		rsa_pss_sign(rcm_keyfile, msg->reserved, crypto_len,
+			msg->object_sig.rsa_pss_sig, msg->modulus);
+
 	return 0;
 }
 
