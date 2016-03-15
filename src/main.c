@@ -429,7 +429,7 @@ int main(int argc, char **argv)
 		if (entryaddr == 0) {
 			entryaddr = loadaddr;
 		}
-		printf("booloader file: %s\n", blfile);
+		printf("bootloader file: %s\n", blfile);
 		printf("load addr 0x%x\n", loadaddr);
 		printf("entry addr 0x%x\n", entryaddr);
 	}
