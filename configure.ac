@@ -33,6 +33,7 @@ AC_LINK_IFELSE(
 		[AC_MSG_ERROR([libcrypto++/libcryptopp is not installed.])])]
 )
 AC_SUBST(CRYPTOLIB)
+AC_DEFINE_UNQUOTED([CRYPTOLIB_HEADER_PREFIX], [$CRYPTOLIB], [Location of cryptolib header])
 LDFLAGS=$SAVED_LDFLAGS
 AC_LANG(C)
 
