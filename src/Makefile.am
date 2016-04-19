@@ -1,5 +1,5 @@
 AM_CFLAGS = -Wall -std=c99
-AM_CPPFLAGS = -isystem /usr/include/$(CRYPTOLIB) $(LIBUSB_CFLAGS)
+AM_CPPFLAGS = $(LIBUSB_CFLAGS)
 
 bin_PROGRAMS = tegrarcm
 tegrarcm_SOURCES = \
