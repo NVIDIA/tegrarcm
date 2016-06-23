@@ -147,10 +147,10 @@ state of any other USB devices so you don't confuse yourself).
 
 .nf
 $ lsusb
-...
+[...]
 Bus 003 Device 039: ID 0955:7721 NVidia Corp.
 Bus 003 Device 045: ID 0955:7140 NVidia Corp.
-...
+[...]
 .fi
 
 Then, to determine the USB port path, do one of:
