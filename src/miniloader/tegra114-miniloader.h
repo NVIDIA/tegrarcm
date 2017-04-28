@@ -6,6 +6,9 @@
  * and any modifications thereto.  Any use, reproduction, disclosure or
  * distribution of this software and related documentation without an express
  * license agreement from NVIDIA CORPORATION is strictly prohibited.
+ *
+ * Refer to License For Customer Use of NVIDIA Software in the LICENSE file in
+ * this project for applicable license terms for this software.
  */
 #define TEGRA114_MINILOADER_ENTRY 0x4000e000
 uint8_t miniloader_tegra114[] = {
