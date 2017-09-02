@@ -137,7 +137,7 @@ typedef struct {
 } nv3p_cmd_status_t;
 
 /*
- * nv3p_platform_info_t: retrieves the system information. All paramters
+ * nv3p_platform_info_t: retrieves the system information. All parameters
  * are output parameters.
  */
 typedef struct {
