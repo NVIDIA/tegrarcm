@@ -81,8 +81,14 @@ implies.
 Changelog
 =========
 
-Ssee git logs for complete list.
+See git logs for complete list.
 
+V1.8 - Support for production devices with PKC
+     - Support for --gen-signed-msgs, --signed-msgs, and --download-signed-msgs
+       options.
+     - Support for --usb-timeout option.
+     - Various man page and code cleanups.
+     - Compilation fix when cryptopp isn't installed system-wide.
 V1.7 - Documented patch submission process in this file
      - Added better USB debugging message
      - Require a specific minimum version of libusb
